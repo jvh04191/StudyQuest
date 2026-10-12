@@ -64,6 +64,14 @@ export function generateStudySet(body: {
   return post<GenResult>('/api/generate', body, 240000);
 }
 
+export function hardenChoices(cards: { id: string; front: string; back: string }[]) {
+  return post<{ choices: Record<string, string[]> }>('/api/harden', { cards }, 120000);
+}
+
+export function gradeAnswer(body: { question: string; answer: string; detail?: string; response: string }) {
+  return post<{ verdict: 'correct' | 'partial' | 'wrong'; feedback: string }>('/api/grade', body, 60000);
+}
+
 export function askNova(body: unknown) {
   return post<{ reply: string }>('/api/nova', body);
 }

@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, Share, View } from 'react-native';
 
 import { SubjectArt } from '@/components/art/Art';
 import { goBackOr, startQuest } from '@/components/map/TopicSheet';
@@ -11,6 +11,7 @@ import { Bar, Button, Field, IconButton, Panel, Pill, T } from '@/components/ui/
 import { Screen } from '@/components/ui/Screen';
 import { useDeckStats } from '@/lib/hooks';
 import { cardStatus, isDue, statusLabel } from '@/lib/srs';
+import { exportTabs } from '@/lib/transfer';
 import { relDue } from '@/lib/util';
 import { landName } from '@/lib/world';
 import { useNova } from '@/store/novaStore';
@@ -42,6 +43,7 @@ export default function DeckScreen() {
   const [filter, setFilter] = useState<CardStatus | 'all'>('all');
   // Opened with ?test=1 right after a deck is made, so the first thing offered is a test.
   const [showTest, setShowTest] = useState(test === '1');
+  const [copied, setCopied] = useState(false);
   const setContext = useNova((s) => s.setContext);
   useFocusEffect(useCallback(() => setContext({ screen: 'deck', deckId: id }), [setContext, id]));
 
@@ -106,7 +108,26 @@ export default function DeckScreen() {
       <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
         <Button icon="target" label="Test yourself" disabled={!cards.length} onPress={() => setShowTest(true)} />
         <Button kind="secondary" icon="play" label={st.due ? `Start quest · ${st.due} due` : 'Start quest'} disabled={!cards.length} onPress={() => startQuest('quest', { deckIds: [deck.id] })} />
+        <Button kind="secondary" icon="cards" label="Match game" disabled={cards.length < 3} onPress={() => router.push({ pathname: '/match', params: { id: deck.id } })} />
         <Button kind="secondary" icon="plus" label="Add card" onPress={() => { setAdding(true); setEditing(null); }} />
+        <Button
+          kind="ghost"
+          icon="upload"
+          label={copied ? 'Copied!' : 'Export'}
+          disabled={!cards.length}
+          onPress={async () => {
+            const text = exportTabs(cards);
+            try {
+              if (Platform.OS === 'web') {
+                await navigator.clipboard.writeText(text);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              } else {
+                await Share.share({ title: deck.title, message: text });
+              }
+            } catch {}
+          }}
+        />
         <Button
           kind="secondary"
           icon="sparkle"

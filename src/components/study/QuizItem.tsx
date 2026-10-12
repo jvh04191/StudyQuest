@@ -6,6 +6,7 @@ import { NovaOrb } from '@/components/art/NovaOrb';
 import { Icon } from '@/components/ui/Icon';
 import { Button, T } from '@/components/ui/primitives';
 import { haptic, sound, useCalmMotion } from '@/lib/feedback';
+import { gradeAnswer } from '@/lib/ai';
 import { checkTyped } from '@/lib/util';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDock } from '@/store/dock';
@@ -51,6 +52,9 @@ export function QuizItem({
   const shake = useSharedValue(0);
   const shakeA = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
 
+  const [grading, setGrading] = useState(false);
+  const [aiNote, setAiNote] = useState('');
+  const isRight = (o: string) => (item.claim ? (o === 'True') === item.claimTrue : o === card.back);
   const options = item.options ?? [];
   const typedMode = item.mode === 'typed';
   const answers = [card.back, ...card.aliases];
@@ -80,19 +84,35 @@ export function QuizItem({
   const pick = (o: string) => {
     if (phase !== 'asking') return;
     setPicked(o);
-    const ok = o === card.back;
+    const ok = isRight(o);
     if (!ok) setEliminated((e) => [...e, o]);
     judge(ok);
   };
 
-  const submitTyped = () => {
-    if (phase !== 'asking' || !typed.trim()) return;
+  const submitTyped = async () => {
+    if (phase !== 'asking' || !typed.trim() || grading) return;
+    if (item.free) {
+      setGrading(true);
+      try {
+        const g = await gradeAnswer({ question: card.front, answer: card.back, detail: card.detail, response: typed });
+        setAiNote(g.feedback);
+        judge(g.verdict !== 'wrong', false);
+      } catch {
+        setAiNote('Nova couldn’t grade this, so it was checked by matching instead.');
+        const v = checkTyped(typed, answers);
+        judge(v !== 'wrong', v === 'close');
+      } finally {
+        setGrading(false);
+      }
+      return;
+    }
     const v = checkTyped(typed, answers);
     judge(v !== 'wrong', v === 'close');
   };
 
   const tryAgain = () => {
     setAttempt(2);
+    setAiNote('');
     setPicked(null);
     setTyped('');
     setPhase('asking');
@@ -150,7 +170,7 @@ export function QuizItem({
           {phase === 'wrong' ? (
             <>
               <Text style={{ fontFamily: font.body, fontSize: 14.5, lineHeight: 21, color: tone.ink }}>
-                {typedMode ? `“${typed.trim()}” isn’t it.` : `“${picked}” isn’t the answer.`} {card.hint ? card.hint : 'Think about what the question is really asking.'}
+                {aiNote || (typedMode ? `“${typed.trim()}” isn’t it.` : `“${picked}” isn’t the answer.`)} {card.hint ? card.hint : 'Think about what the question is really asking.'}
               </Text>
               <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
                 <Button kind="danger" icon="refresh" label="Try again" onPress={tryAgain} />
@@ -160,6 +180,7 @@ export function QuizItem({
             </>
           ) : (
             <>
+              {aiNote ? <Text style={{ fontFamily: font.bodyBold, fontSize: 14, lineHeight: 20, color: tone.ink }}>{aiNote}</Text> : null}
               {closeMatch && <Text style={{ fontFamily: font.bodyBold, fontSize: 13.5, color: tone.ink }}>Accepted. Watch the spelling: {card.back}</Text>}
               {card.detail ? <Text style={{ fontFamily: font.body, fontSize: 14.5, lineHeight: 21, color: tone.ink }}>{card.detail}</Text> : null}
               {sourceLabel ? <T v="caption" style={{ color: tone.ink, opacity: 0.8 }}>{sourceLabel}</T> : null}
@@ -199,10 +220,10 @@ export function QuizItem({
   useEffect(() => {
     setDock(feedback);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, attempt, usedHint, picked, closeMatch, card.id]);
+  }, [phase, attempt, usedHint, picked, closeMatch, card.id, aiNote]);
   useEffect(() => () => setDock(null), [setDock]);
 
-  const kindLabel = item.retry === 'retry' ? 'Another try' : item.retry === 'check' ? 'Quick check' : typedMode ? 'Type the answer' : 'Multiple choice';
+  const kindLabel = item.retry === 'retry' ? 'Another try' : item.retry === 'check' ? 'Quick check' : item.free ? 'Written answer' : item.blank ? 'Fill in the blank' : typedMode ? 'Type the answer' : item.claim ? 'True or false' : 'Multiple choice';
 
   return (
     <View style={{ gap: space.lg }}>
@@ -217,7 +238,20 @@ export function QuizItem({
             </View>
           )}
         </View>
-        <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 25, lineHeight: 32, color: ink }}>{card.front}</Text>
+        {item.blank ? (
+          <>
+            <Text style={{ fontFamily: font.bodyBold, fontSize: 14, color: muted }}>{card.front}</Text>
+            <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 23, lineHeight: 31, color: ink }}>{item.blank}</Text>
+          </>
+        ) : (
+          <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 25, lineHeight: 32, color: ink }}>{card.front}</Text>
+        )}
+        {item.claim ? (
+          <View style={{ padding: 14, borderRadius: 16, backgroundColor: night ? 'rgba(255,244,222,0.12)' : C.honeySoft, gap: 2 }}>
+            <Text style={{ fontFamily: font.bodyBold, fontSize: 11.5, letterSpacing: 0.8, textTransform: 'uppercase', color: night ? C.onNight : C.honeyInk }}>Proposed answer</Text>
+            <Text style={{ fontFamily: font.bodyBold, fontSize: 18, lineHeight: 24, color: night ? C.onNight : C.text }}>{item.claim}</Text>
+          </View>
+        ) : null}
       </Animated.View>
 
       {typedMode ? (
@@ -233,13 +267,17 @@ export function QuizItem({
             placeholder="Type your answer"
             placeholderTextColor={C.textFaint}
             selectionColor={C.moss}
-            onSubmitEditing={submitTyped}
+            onSubmitEditing={item.free ? undefined : submitTyped}
+            multiline={!!item.free}
             returnKeyType="done"
             accessibilityLabel="Type your answer"
             style={{
               flex: 1,
               minWidth: 0,
-              height: 56,
+              height: item.free ? undefined : 56,
+              minHeight: item.free ? 120 : undefined,
+              textAlignVertical: item.free ? 'top' : 'center',
+              paddingTop: item.free ? 14 : 0,
               borderRadius: 16,
               borderWidth: 2,
               borderColor: phase === 'correct' ? C.moss : phase === 'wrong' || phase === 'revealed' ? C.berry : C.panelBorder,
@@ -251,12 +289,12 @@ export function QuizItem({
               paddingHorizontal: 16,
             }}
           />
-          {phase === 'asking' && <Button label="Check" disabled={!typed.trim()} onPress={submitTyped} style={{ height: 60 }} />}
+          {phase === 'asking' && <Button label={grading ? 'Grading…' : item.free ? 'Grade' : 'Check'} disabled={!typed.trim() || grading} onPress={submitTyped} style={{ height: 60 }} />}
         </View>
       ) : (
         <View style={{ gap: 10 }}>
           {options.map((o, i) => {
-            const isAnswer = o === card.back;
+            const isAnswer = isRight(o);
             const out = eliminated.includes(o);
             const showRight = (phase === 'correct' || phase === 'revealed') && isAnswer;
             const showWrong = picked === o && !isAnswer;

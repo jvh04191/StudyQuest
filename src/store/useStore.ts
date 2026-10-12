@@ -79,6 +79,7 @@ interface Actions {
   deleteSubject: (id: ID) => void;
   addCards: (deckId: ID, cards: DraftCard[]) => void;
   updateCard: (id: ID, patch: Partial<DraftCard>) => void;
+  setHardChoices: (choices: Record<ID, string[]>) => void;
   deleteCard: (id: ID) => void;
   setPrefs: (p: Partial<Prefs>) => void;
   setPlayer: (p: Partial<Pick<Player, 'name' | 'novaStyle'>>) => void;
@@ -155,13 +156,44 @@ function buildQueue(
     // A practice test covers the whole deck in random order, asked the way the learner chose.
     const picked = shuffle(all.filter(inDecks)).slice(0, test?.count ?? 1000);
     const want = test?.mode ?? 'mixed';
+    const others = all.filter(inDecks);
+    const gapOf = (c: Card) => {
+      const base = c.detail || '';
+      const i = base.toLowerCase().indexOf(c.back.toLowerCase());
+      return c.back.length >= 3 && i >= 0 ? `${base.slice(0, i)}_____${base.slice(i + c.back.length)}` : undefined;
+    };
+    const wrongFor = (c: Card) => {
+      const pool = [...c.distractors.filter(Boolean), ...shuffle(others.filter((o) => o.id !== c.id).map((o) => o.back))].filter((x) => x.toLowerCase() !== c.back.toLowerCase());
+      return pool.length ? (c.distractors.filter(Boolean).length ? shuffle(c.distractors.filter(Boolean))[0] : pool[0]) : undefined;
+    };
     return picked.map((c, i) => {
       const hasChoices = c.distractors.filter(Boolean).length >= 2;
       const typed = typedEligible(c);
       const asTyped: ItemMode = typed ? 'typed' : hasChoices ? 'mc' : 'flash';
       const asChoice: ItemMode = hasChoices ? 'mc' : typed ? 'typed' : 'flash';
-      const mode: ItemMode = want === 'flash' ? 'flash' : want === 'typed' ? asTyped : want === 'mc' ? asChoice : i % 2 === 0 ? asChoice : asTyped;
-      return { key: uid('q'), cardId: c.id, mode, options: mode === 'mc' ? optionsFor(c) : undefined };
+      const tf = (): QueueItem | undefined => {
+        const wrong = wrongFor(c);
+        if (!wrong) return undefined;
+        const claimTrue = Math.random() < 0.5;
+        return { key: uid('q'), cardId: c.id, mode: 'mc', options: ['True', 'False'], claim: claimTrue ? c.back : wrong, claimTrue };
+      };
+      const blank = (): QueueItem | undefined => {
+        const gap = gapOf(c);
+        return gap && typed ? { key: uid('q'), cardId: c.id, mode: 'typed', blank: gap } : undefined;
+      };
+      const plain = (m: ItemMode): QueueItem => ({ key: uid('q'), cardId: c.id, mode: m, options: m === 'mc' ? optionsFor(c) : undefined });
+      switch (want) {
+        case 'flash': return plain('flash');
+        case 'typed': return plain(asTyped);
+        case 'mc': return plain(asChoice);
+        case 'tf': return tf() ?? plain(asChoice);
+        case 'blank': return blank() ?? plain(asTyped);
+        case 'free': return { key: uid('q'), cardId: c.id, mode: 'typed', free: true };
+        default: {
+          const cycle = [() => plain(asChoice), tf, () => plain(asTyped), blank][i % 4];
+          return cycle() ?? plain(i % 2 === 0 ? asChoice : asTyped);
+        }
+      }
     });
   }
 
@@ -666,6 +698,15 @@ export const useStore = create<StoreState>()(
               },
             },
           };
+        }),
+
+      setHardChoices: (choices) =>
+        set((s) => {
+          const cards = { ...s.cards };
+          for (const [id, distractors] of Object.entries(choices)) {
+            if (cards[id]) cards[id] = { ...cards[id], distractors, hardChoices: true };
+          }
+          return { cards };
         }),
 
       deleteCard: (id) =>

@@ -12,12 +12,13 @@ import { Button, Field, IconButton, Panel, Pill, Segmented, T } from '@/componen
 import { Screen } from '@/components/ui/Screen';
 import { generateStudySet, quickExtract } from '@/lib/ai';
 import { Bar } from '@/components/ui/primitives';
+import { parseImport } from '@/lib/transfer';
 import { landName } from '@/lib/world';
 import { useNova } from '@/store/novaStore';
 import { useStore, type DraftCard } from '@/store/useStore';
 import { color as C, font, radius, size, space } from '@/theme/tokens';
 
-type Source = 'notes' | 'pdf' | 'manual';
+type Source = 'notes' | 'pdf' | 'manual' | 'import';
 interface Draft extends DraftCard {
   keep: boolean;
 }
@@ -61,6 +62,19 @@ export default function Create() {
   const [origin, setOrigin] = useState<'ai' | 'rules' | 'manual' | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [addingManual, setAddingManual] = useState(false);
+  const [pasted, setPasted] = useState('');
+
+  const readImport = () => {
+    setError(null);
+    const cards = parseImport(pasted);
+    if (!cards.length) {
+      setError('No cards were found. Each line needs a question and an answer separated by a tab or a comma.');
+      return;
+    }
+    setDrafts(cards.map((c) => ({ ...c, keep: true })));
+    setSummary('');
+    setOrigin('manual');
+  };
 
   const subjectName = subjects.find((s) => s.id === subjectId)?.name ?? newSubject;
 
@@ -184,10 +198,11 @@ export default function Create() {
             { value: 'notes', label: 'Notes', icon: 'doc' },
             { value: 'pdf', label: 'PDF', icon: 'upload' },
             { value: 'manual', label: 'By hand', icon: 'pen' },
+            { value: 'import', label: 'Import', icon: 'upload' },
           ]}
         />
 
-        {ai === 'off' && source !== 'manual' && (
+        {ai === 'off' && source !== 'manual' && source !== 'import' && (
           <View style={{ flexDirection: 'row', gap: 10, padding: space.md, borderRadius: radius.md, backgroundColor: C.goldSoft }}>
             <Icon name="info" size={18} color={C.gold} />
             <T v="small" style={{ flex: 1, color: C.text }}>
@@ -198,7 +213,15 @@ export default function Create() {
           </View>
         )}
 
-        {source !== 'manual' && ai === 'on' && (
+        {source === 'import' && (
+          <View style={{ gap: space.md }}>
+            <T v="small">Paste an export from Quizlet (Export), Anki (Notes in Plain Text) or a spreadsheet CSV. One card per line: question, then answer, separated by a tab or comma. No AI needed.</T>
+            <Field value={pasted} onChangeText={setPasted} multiline inputStyle={{ minHeight: 200 }} accessibilityLabel="Cards to import" placeholder={'Osmosis\tMovement of water across a membrane\nMitosis\tCell division that makes identical cells'} />
+            <Button icon="check" label="Read cards" disabled={pasted.trim().length < 3} onPress={readImport} />
+          </View>
+        )}
+
+        {source !== 'manual' && source !== 'import' && ai === 'on' && (
           <View style={{ gap: space.sm }}>
             <T v="bodyStrong">How many cards</T>
             <Segmented

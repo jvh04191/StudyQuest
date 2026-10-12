@@ -32,6 +32,7 @@ export async function POST(request: Request) {
 Rules:
 - Use only facts stated in the material.
 - Avoid near-duplicate cards.
+- Make the 3 wrong answers on each card very hard to tell from the right one: same wording style and length, each a believable near-miss or common misconception.
 - Each source_quote must be copied exactly from the material.${body.mode === 'pdf' ? ' Include source_page for every card.' : ''}`;
     const input = await makeStudySet({ text, pdfBase64: body.mode === 'pdf' ? body.pdfBase64 : undefined, instructions });
     if (!input?.cards?.length) return Response.json({ error: 'The AI did not return any cards. Try different material.' }, { status: 502 });

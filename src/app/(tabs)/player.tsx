@@ -183,6 +183,8 @@ export default function PlayerScreen() {
         <T v="caption">More ways to dress your explorer live in the full creator.</T>
       </Panel>
 
+      <Button kind="secondary" icon="target" label="View stats" onPress={() => router.push('/stats')} />
+
       <View style={{ gap: 12 }}>
         <T v="heading">Achievements</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>

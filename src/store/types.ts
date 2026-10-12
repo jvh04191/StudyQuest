@@ -27,6 +27,8 @@ export interface Card {
   hint: string;
   distractors: string[];
   aliases: string[];
+  /** Wrong answers were rewritten as near-misses for hard multiple choice. */
+  hardChoices?: boolean;
   source?: CardSource;
   createdAt: number;
 }
@@ -70,7 +72,7 @@ export type DeckState = 'new' | 'progress' | 'review' | 'mastered';
 export type ItemMode = 'flash' | 'mc' | 'typed';
 export type SessionKind = 'quest' | 'boss' | 'review' | 'missed' | 'test';
 /** How a practice test asks its questions. */
-export type TestMode = 'mc' | 'typed' | 'flash' | 'mixed';
+export type TestMode = 'mc' | 'typed' | 'flash' | 'mixed' | 'tf' | 'blank' | 'free';
 
 export interface QueueItem {
   key: string;
@@ -79,6 +81,13 @@ export interface QueueItem {
   /** 'retry' = another chance after a miss; 'check' = quick test right after learning a new card. */
   retry?: 'retry' | 'check';
   options?: string[];
+  /** True/false: the answer being proposed, and whether it is the real one. */
+  claim?: string;
+  claimTrue?: boolean;
+  /** Fill in the blank: a sentence with the answer replaced by a gap. */
+  blank?: string;
+  /** Free response: a longer written answer graded by the AI. */
+  free?: boolean;
 }
 
 export interface ItemResult {

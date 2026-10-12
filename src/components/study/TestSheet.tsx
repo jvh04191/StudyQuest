@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hardenChoices } from '@/lib/ai';
 import { startQuest } from '@/components/map/TopicSheet';
 import { useLayoutMode } from '@/components/shell/AppShell';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -15,8 +16,11 @@ import { color as C, font, space } from '@/theme/tokens';
 const MODES: { id: TestMode; icon: IconName; title: string; desc: string }[] = [
   { id: 'mc', icon: 'target', title: 'Multiple choice', desc: 'Pick the right answer from four options.' },
   { id: 'typed', icon: 'pen', title: 'Active recall', desc: 'Type the answer from memory. The best way to make it stick.' },
+  { id: 'tf', icon: 'check', title: 'True or false', desc: 'Decide whether the answer shown for each question is right.' },
+  { id: 'blank', icon: 'edit', title: 'Fill in the blank', desc: 'Complete the sentence from memory. Cards without a matching sentence are asked as recall.' },
+  { id: 'free', icon: 'sparkle', title: 'Written answers', desc: 'Explain in your own words and Nova grades the meaning. Needs the AI.' },
   { id: 'flash', icon: 'cards', title: 'Flashcards', desc: 'Flip each card and rate how well you knew it.' },
-  { id: 'mixed', icon: 'refresh', title: 'Mixed', desc: 'Alternates choices and recall, like a real exam.' },
+  { id: 'mixed', icon: 'refresh', title: 'Mixed', desc: 'Cycles through choices, true/false, recall and fill-in-the-blank, like a real exam.' },
 ];
 
 /**
@@ -29,6 +33,9 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
   const withChoices = useStore((s) => Object.values(s.cards).filter((c) => c.deckId === deckId && c.distractors.filter(Boolean).length >= 2).length);
   const [mode, setMode] = useState<TestMode>('mixed');
   const [count, setCount] = useState<'10' | '20' | 'all'>('all');
+  const [hard, setHard] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   const { rail } = useLayoutMode();
   const insets = useSafeAreaInsets();
   const calm = useCalmMotion();
@@ -36,6 +43,30 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
 
   const n = count === 'all' ? total : Math.min(total, Number(count));
   const noChoices = (mode === 'mc' || mode === 'mixed') && withChoices < total;
+  const usesChoices = mode === 'mc' || mode === 'mixed' || mode === 'tf';
+
+  const begin = async () => {
+    if (usesChoices && hard && !err) {
+      const st = useStore.getState();
+      const todo = Object.values(st.cards).filter((c) => c.deckId === deckId && !c.hardChoices);
+      if (todo.length) {
+        setBusy(true);
+        try {
+          for (let i = 0; i < todo.length; i += 25) {
+            const { choices } = await hardenChoices(todo.slice(i, i + 25).map((c) => ({ id: c.id, front: c.front, back: c.back })));
+            useStore.getState().setHardChoices(choices);
+          }
+        } catch (e) {
+          setBusy(false);
+          setErr(e instanceof Error ? e.message : 'Could not make the choices trickier.');
+          return;
+        }
+        setBusy(false);
+      }
+    }
+    onClose();
+    startQuest('test', { deckIds: [deckId], testMode: mode, count: count === 'all' ? undefined : Number(count) });
+  };
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: rail ? 'center' : 'flex-end', alignItems: 'center', zIndex: 50 }}>
@@ -69,7 +100,7 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
           <IconButton icon="close" label="Close" onPress={onClose} size={40} />
         </View>
 
-        <View style={{ gap: 8 }}>
+        <ScrollView style={{ flexShrink: 1, minHeight: 120 }} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {MODES.map((m) => {
             const on = m.id === mode;
             return (
@@ -104,7 +135,7 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
         <View style={{ gap: 6 }}>
           <Text style={{ fontFamily: font.bodyBold, fontSize: 13, color: C.textMuted }}>How many questions</Text>
@@ -126,15 +157,30 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
           </T>
         )}
 
+        {usesChoices && (
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: hard }}
+            onPress={() => { setHard(!hard); setErr(''); }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 44, height: 26, borderRadius: 13, padding: 3, backgroundColor: hard ? C.moss : C.bgDeep, alignItems: hard ? 'flex-end' : 'flex-start' }}>
+              <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' }} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: font.bodyBold, fontSize: 14, color: C.text }}>Hard choices</Text>
+              <Text style={{ fontFamily: font.body, fontSize: 12.5, lineHeight: 17, color: C.textMuted }}>Wrong answers are near-misses that look like the right one. Uses the AI once per deck.</Text>
+            </View>
+          </Pressable>
+        )}
+
+        {err ? <T v="caption" style={{ color: C.berry }}>{err} You can start with the normal choices instead.</T> : null}
+
         <Button
           full
           icon="play"
-          label={`Start test · ${n} question${n === 1 ? '' : 's'}`}
-          disabled={!total}
-          onPress={() => {
-            onClose();
-            startQuest('test', { deckIds: [deckId], testMode: mode, count: count === 'all' ? undefined : Number(count) });
-          }}
+          label={busy ? 'Making the choices trickier…' : err ? 'Start with normal choices' : `Start test · ${n} question${n === 1 ? '' : 's'}`}
+          disabled={!total || busy}
+          onPress={begin}
         />
         <T v="caption" style={{ textAlign: 'center' }}>No hearts are lost in a test. Anything you miss comes back before it ends.</T>
       </Animated.View>
