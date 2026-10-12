@@ -6,7 +6,7 @@ import { buildSeed } from '@/data/seed';
 import { CHEST_ITEMS, DEFAULT_LOOK, lockedReset, type Look } from '@/lib/avatar';
 import { ACHIEVEMENTS, ACORNS_PER_QUEST, HEARTS_MAX, levelFromXp, newPlayer, REST_MS, SKIP_COST, unlocksAt, XP } from '@/lib/progression';
 import { pickQuests, questProgress } from '@/lib/quests';
-import { cardStatus, deckStats, freshState, isDue, modeFor, schedule } from '@/lib/srs';
+import { cardStatus, deckStats, freshState, isDue, modeFor, schedule, typedEligible } from '@/lib/srs';
 import { DAY, dayKey, shuffle, uid, yesterdayKey } from '@/lib/util';
 import { subjectPalette } from '@/theme/tokens';
 import type {
@@ -16,6 +16,7 @@ import type {
   Daily,
   Deck,
   ID,
+  ItemMode,
   ItemResult,
   Player,
   Prefs,
@@ -23,6 +24,7 @@ import type {
   SessionKind,
   SessionRecord,
   Subject,
+  TestMode,
   XpLine,
 } from './types';
 
@@ -64,7 +66,7 @@ interface Actions {
   skipRest: () => boolean;
   /** Open a quest's treasure chest and apply the loot. */
   openChest: (recordId: ID) => void;
-  startSession: (kind: SessionKind, opts?: { deckIds?: ID[]; subjectId?: ID }) => ID | null;
+  startSession: (kind: SessionKind, opts?: { deckIds?: ID[]; subjectId?: ID; testMode?: TestMode; count?: number }) => ID | null;
   answer: (input: AnswerInput) => ItemResult | null;
   finishSession: () => SessionRecord | null;
   abandonSession: () => void;
@@ -138,6 +140,7 @@ function buildQueue(
   deckIds: ID[],
   s: Data,
   now: number,
+  test?: { mode?: TestMode; count?: number },
 ): QueueItem[] {
   const inDecks = (c: Card) => deckIds.includes(c.deckId);
   const all = Object.values(s.cards);
@@ -147,6 +150,20 @@ function buildQueue(
     const mode = modeFor(c, st(c), boss);
     return { key: uid('q'), cardId: c.id, mode, options: mode === 'mc' ? optionsFor(c) : undefined };
   };
+
+  if (kind === 'test') {
+    // A practice test covers the whole deck in random order, asked the way the learner chose.
+    const picked = shuffle(all.filter(inDecks)).slice(0, test?.count ?? 1000);
+    const want = test?.mode ?? 'mixed';
+    return picked.map((c, i) => {
+      const hasChoices = c.distractors.filter(Boolean).length >= 2;
+      const typed = typedEligible(c);
+      const asTyped: ItemMode = typed ? 'typed' : hasChoices ? 'mc' : 'flash';
+      const asChoice: ItemMode = hasChoices ? 'mc' : typed ? 'typed' : 'flash';
+      const mode: ItemMode = want === 'flash' ? 'flash' : want === 'typed' ? asTyped : want === 'mc' ? asChoice : i % 2 === 0 ? asChoice : asTyped;
+      return { key: uid('q'), cardId: c.id, mode, options: mode === 'mc' ? optionsFor(c) : undefined };
+    });
+  }
 
   if (kind === 'boss') {
     const pool = all.filter(inDecks);
@@ -289,6 +306,8 @@ export const useStore = create<StoreState>()(
         if (kind === 'boss' && opts.subjectId) {
           deckIds = s.decks.filter((d) => d.subjectId === opts.subjectId).map((d) => d.id);
           title = `Boss battle · ${s.subjects.find((x) => x.id === opts.subjectId)?.name ?? ''}`;
+        } else if (kind === 'test') {
+          title = deckIds.length === 1 ? `Test · ${s.decks.find((d) => d.id === deckIds[0])?.title ?? 'deck'}` : 'Practice test';
         } else if (kind === 'review') {
           deckIds = s.decks.map((d) => d.id);
           title = 'Daily review';
@@ -298,13 +317,13 @@ export const useStore = create<StoreState>()(
         } else {
           title = s.decks.find((d) => d.id === deckIds[0])?.title ?? 'Quest';
         }
-        const queue = buildQueue(kind, deckIds, s, now);
+        const queue = buildQueue(kind, deckIds, s, now, { mode: opts.testMode, count: opts.count });
         if (!queue.length) return null;
         const id = uid('s');
         set({
           active: {
             id, kind, title, deckIds, subjectId: opts.subjectId, queue, index: 0, results: [],
-            xpEarned: 0, xpStart: s.player.xp, startedAt: now,
+            xpEarned: 0, xpStart: s.player.xp, startedAt: now, testMode: kind === 'test' ? opts.testMode ?? 'mixed' : undefined,
           },
         });
         return id;
@@ -380,7 +399,7 @@ export const useStore = create<StoreState>()(
 
         // Hearts: a wrong answer costs one; at zero the explorer has to rest.
         let heartLost = false;
-        if (quiz && !input.correct && s.prefs.heartsMode !== 'off' && player.hearts > 0) {
+        if (quiz && !input.correct && a.kind !== 'test' && s.prefs.heartsMode !== 'off' && player.hearts > 0) {
           player.hearts -= 1;
           heartLost = true;
           if (player.hearts === 0) player.restEndsAt = now + REST_MS;
@@ -521,6 +540,7 @@ export const useStore = create<StoreState>()(
           newAchievements: earned,
           newUnlocks: unlocks,
           bossWon,
+          testMode: a.testMode,
           rewardSeen: false,
           acorns,
           chest,

@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { SubjectArt } from '@/components/art/Art';
 import { goBackOr, startQuest } from '@/components/map/TopicSheet';
 import { CardEditor } from '@/components/study/CardEditor';
+import { TestSheet } from '@/components/study/TestSheet';
 import { Icon } from '@/components/ui/Icon';
 import { Bar, Button, Field, IconButton, Panel, Pill, T } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
@@ -25,7 +26,7 @@ const statusTone: Record<CardStatus, { tint: string; bg: string }> = {
 };
 
 export default function DeckScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, test } = useLocalSearchParams<{ id: string; test?: string }>();
   const deck = useStore((s) => s.decks.find((d) => d.id === id));
   const subject = useStore((s) => s.subjects.find((x) => x.id === deck?.subjectId));
   const subjectIndex = useStore((s) => s.subjects.findIndex((x) => x.id === deck?.subjectId));
@@ -39,6 +40,8 @@ export default function DeckScreen() {
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(deck?.title ?? '');
   const [filter, setFilter] = useState<CardStatus | 'all'>('all');
+  // Opened with ?test=1 right after a deck is made, so the first thing offered is a test.
+  const [showTest, setShowTest] = useState(test === '1');
   const setContext = useNova((s) => s.setContext);
   useFocusEffect(useCallback(() => setContext({ screen: 'deck', deckId: id }), [setContext, id]));
 
@@ -58,6 +61,7 @@ export default function DeckScreen() {
   const shown = filter === 'all' ? cards : cards.filter((c) => cardStatus(states[c.id]) === filter);
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen maxWidth={860}>
       <Button kind="ghost" small icon="chevronLeft" label="Back" onPress={() => goBackOr('/library')} />
       <View style={{ flexDirection: 'row', gap: space.lg, alignItems: 'center' }}>
@@ -100,7 +104,8 @@ export default function DeckScreen() {
       </View>
 
       <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-        <Button icon="play" label={st.due ? `Start quest · ${st.due} due` : 'Start quest'} disabled={!cards.length} onPress={() => startQuest('quest', { deckIds: [deck.id] })} />
+        <Button icon="target" label="Test yourself" disabled={!cards.length} onPress={() => setShowTest(true)} />
+        <Button kind="secondary" icon="play" label={st.due ? `Start quest · ${st.due} due` : 'Start quest'} disabled={!cards.length} onPress={() => startQuest('quest', { deckIds: [deck.id] })} />
         <Button kind="secondary" icon="plus" label="Add card" onPress={() => { setAdding(true); setEditing(null); }} />
         <Button
           kind="secondary"
@@ -192,5 +197,7 @@ export default function DeckScreen() {
         <T v="caption" style={{ color: C.textFaint }}>Deleting a single card happens right away.</T>
       </View>
     </Screen>
+    {showTest && <TestSheet deckId={deck.id} intro={test === '1' ? 'Your deck is ready' : undefined} onClose={() => setShowTest(false)} />}
+    </View>
   );
 }

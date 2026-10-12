@@ -170,7 +170,7 @@ export function RewardSequence({ record, onDone }: { record: SessionRecord; onDo
   // Stars: first-try accuracy decides.
   const acc = record.answered ? record.firstTryCorrect / record.answered : 0.7;
   const stars = record.kind === 'boss' && !record.bossWon ? 1 : acc >= 0.9 ? 3 : acc >= 0.6 ? 2 : 1;
-  const title = record.kind === 'boss' ? (record.bossWon ? 'Boss defeated!' : 'Fog still lingers') : 'Quest complete!';
+  const title = record.kind === 'boss' ? (record.bossWon ? 'Boss defeated!' : 'Fog still lingers') : record.kind === 'test' ? 'Test complete!' : 'Quest complete!';
 
   useEffect(() => {
     sound('reward');

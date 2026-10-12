@@ -127,7 +127,7 @@ export default function Create() {
             : { kind: 'notes', title: 'Pasted notes', text: notes.trim().slice(0, 30000) },
       cards: kept.map(({ keep: _k, ...c }) => c),
     });
-    router.replace(`/deck/${deck.id}`);
+    router.replace({ pathname: '/deck/[id]', params: { id: deck.id, test: '1' } });
   };
 
   return (

@@ -11,6 +11,7 @@ import { deckStateLabel, deckStats } from '@/lib/srs';
 import { relDue as relDueLabel } from '@/lib/util';
 import { landName } from '@/lib/world';
 import { useNova } from '@/store/novaStore';
+import type { TestMode } from '@/store/types';
 import { useStore } from '@/store/useStore';
 import { color as C, font, space } from '@/theme/tokens';
 
@@ -23,8 +24,8 @@ export function isResting() {
 }
 
 export function startQuest(
-  kind: 'quest' | 'boss' | 'review' | 'missed',
-  opts?: { deckIds?: string[]; subjectId?: string },
+  kind: 'quest' | 'boss' | 'review' | 'missed' | 'test',
+  opts?: { deckIds?: string[]; subjectId?: string; testMode?: TestMode; count?: number },
   navigate = true,
 ) {
   if (isResting()) {

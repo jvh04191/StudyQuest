@@ -68,7 +68,9 @@ export type CardStatus = 'new' | 'seen' | 'proven' | 'mastered';
 export type DeckState = 'new' | 'progress' | 'review' | 'mastered';
 
 export type ItemMode = 'flash' | 'mc' | 'typed';
-export type SessionKind = 'quest' | 'boss' | 'review' | 'missed';
+export type SessionKind = 'quest' | 'boss' | 'review' | 'missed' | 'test';
+/** How a practice test asks its questions. */
+export type TestMode = 'mc' | 'typed' | 'flash' | 'mixed';
 
 export interface QueueItem {
   key: string;
@@ -108,6 +110,7 @@ export interface ActiveSession {
   xpStart: number;
   startedAt: number;
   recordId?: ID;
+  testMode?: TestMode;
 }
 
 export interface XpLine {
@@ -136,6 +139,7 @@ export interface SessionRecord {
   newAchievements: string[];
   newUnlocks: string[];
   bossWon?: boolean;
+  testMode?: TestMode;
   rewardSeen: boolean;
   /** Acorns paid for finishing the quest. */
   acorns: number;

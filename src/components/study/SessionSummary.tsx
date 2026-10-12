@@ -42,7 +42,7 @@ export function SessionSummary({ record }: { record: SessionRecord }) {
   return (
     <View style={{ gap: space.xl }}>
       <View style={{ gap: 6 }}>
-        <T v="eyebrow" style={{ color: C.textFaint }}>{record.kind === 'boss' ? 'Boss battle' : 'Quest'} results</T>
+        <T v="eyebrow" style={{ color: C.textFaint }}>{record.kind === 'boss' ? 'Boss battle' : record.kind === 'test' ? 'Test' : 'Quest'} results</T>
         <T v="title" accessibilityRole="header">{record.title}</T>
         {record.kind === 'boss' && (
           <T v="body" style={{ color: record.bossWon ? C.gold : C.textMuted }}>
@@ -105,12 +105,13 @@ export function SessionSummary({ record }: { record: SessionRecord }) {
         <Button
           kind="secondary"
           icon="play"
-          label="Another quest"
+          label={record.kind === 'test' ? 'Test again' : 'Another quest'}
           onPress={() => {
             if (record.kind === 'boss') {
               const sub = decks.find((d) => d.id === record.deckIds[0])?.subjectId;
               startQuest('boss', { subjectId: sub }, false);
-            } else if (record.kind === 'quest') startQuest('quest', { deckIds: record.deckIds }, false);
+            } else if (record.kind === 'test') startQuest('test', { deckIds: record.deckIds, testMode: record.testMode }, false);
+            else if (record.kind === 'quest') startQuest('quest', { deckIds: record.deckIds }, false);
             else startQuest(record.kind, undefined, false);
           }}
         />
