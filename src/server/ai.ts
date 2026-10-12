@@ -28,7 +28,7 @@ export function aiConfigured() {
 export function modelName() {
   const p = provider();
   if (p === 'gemini') return process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-  if (p === 'groq') return process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  if (p === 'groq') return process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
   return process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 }
 
@@ -166,7 +166,8 @@ async function groq(body: Record<string, unknown>) {
     const res = await send('Groq', `${base}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${requireKey()}` },
-      body: JSON.stringify({ model: modelName(), ...body }),
+      // gpt-oss models "think" first; keep that short so replies are quick and fit the token budget.
+      body: JSON.stringify({ model: modelName(), ...(modelName().startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}), ...body }),
     });
     const data = (await res.json().catch(() => ({}))) as {
       choices?: { message?: { content?: string } }[];
@@ -270,14 +271,14 @@ export async function makeStudySet(input: { text?: string; pdfBase64?: string; i
   if (provider() === 'groq') {
     if (input.pdfBase64) throw new Error("Groq can't read PDFs directly. Paste the text from your PDF as notes instead, or switch AI_PROVIDER to gemini or anthropic in .env.");
     const out = await groq({
-      max_tokens: 8000,
+      max_tokens: 4000, // free tier allows ~8,000 tokens/minute in total, so keep input + output under that
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
         {
           role: 'user',
           content: `<material>
-${input.text ?? ''}
+${(input.text ?? '').slice(0, 14000)}
 </material>
 
 ${input.instructions}
