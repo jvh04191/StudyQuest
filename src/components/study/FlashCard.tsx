@@ -111,7 +111,7 @@ export function FlashCard({
           <Text style={{ textAlign: 'center', fontFamily: font.bodyBold, fontSize: 13.5, color: night ? C.onNightMuted : C.textMuted }}>How well did you know it?</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
             {ratings.map((x) => (
-              <View key={x.r} style={{ alignItems: 'center', gap: 2, flexGrow: 1, flexBasis: 120 }}>
+              <View key={x.r} style={{ alignItems: 'center', gap: 2, flexGrow: 1, flexBasis: 140 }}>
                 <Button full kind={x.kind} label={x.label} onPress={() => onRate(x.r)} />
                 <Text style={{ fontFamily: font.bodyBold, fontSize: 11.5, color: night ? C.onNightMuted : C.textFaint }}>Again in {intervalLabel(nextInterval(state, x.r))}</Text>
               </View>

@@ -197,6 +197,8 @@ export default function Study() {
 
       <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: 40 }}>
         <View style={{ width: '100%', maxWidth: 620, alignSelf: 'center', gap: space.lg }}>
+          {/* fixed-height slot so the question doesn't jump when the XP note appears */}
+          <View style={{ height: 20 }}>
           {lastXp && (lastXp.xp > 0 || lastXp.xpNote || !lastXp.correct) && (
             <Animated.View key={`${active.index}`} entering={calm ? undefined : FadeIn.duration(200)} exiting={calm ? undefined : FadeOut.duration(200)} style={{ minHeight: 20 }}>
               {lastXp.xp > 0 ? (
@@ -210,6 +212,7 @@ export default function Study() {
               )}
             </Animated.View>
           )}
+          </View>
           {item && card ? (
             <Animated.View key={item.key} entering={calm ? undefined : FadeInRight.duration(240)}>
               {item.mode === 'flash' ? (

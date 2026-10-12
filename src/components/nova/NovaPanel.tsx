@@ -156,6 +156,8 @@ export function NovaPanel({ onClose, docked }: { onClose?: () => void; docked?: 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: C.novaBg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, paddingBottom: space.md }}>
+        {/* Close sits on the left: Expo Go's floating settings button covers the top-right corner. */}
+        {onClose && <IconButton icon={docked ? 'chevronRight' : 'close'} label={docked ? 'Tuck Nova to the side' : 'Close Nova'} onPress={onClose} size={40} />}
         <NovaOrb size={48} mood={busy ? 'thinking' : mood} styleId={novaStyle} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -166,7 +168,6 @@ export function NovaPanel({ onClose, docked }: { onClose?: () => void; docked?: 
           </View>
           <T v="caption" numberOfLines={1}>{contextLine}</T>
         </View>
-        {onClose && <IconButton icon={docked ? 'chevronRight' : 'close'} label={docked ? 'Tuck Nova to the side' : 'Close Nova'} onPress={onClose} size={40} />}
       </View>
 
       <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.lg }} keyboardShouldPersistTaps="handled">

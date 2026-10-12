@@ -62,6 +62,7 @@ export function QuizItem({
   }, [phase, onReveal]);
 
   const judge = (ok: boolean, close = false) => {
+    inputRef.current?.blur(); // so the first tap on the feedback panel isn't spent dismissing the keyboard
     if (ok) {
       sound('correct');
       haptic('success');

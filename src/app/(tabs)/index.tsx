@@ -132,7 +132,7 @@ function useContinue() {
   const st = target ? stats[target.id] : undefined;
   const line =
     resumable && active
-      ? `${active.queue.length - active.index} questions left`
+      ? `${active.queue.length - active.index} ${active.queue.length - active.index === 1 ? 'question' : 'questions'} left`
       : target && st
         ? st.due
           ? `${st.due} cards ready to review`
