@@ -24,6 +24,8 @@ export interface Opt {
   id: string;
   name: string;
   level?: number;
+  /** Only found in treasure chests (never unlocked by level). */
+  chest?: boolean;
   color?: string;
   color2?: string;
 }
@@ -144,6 +146,7 @@ export const HEADWEAR: Opt[] = [
   { id: 'band', name: 'Headband' },
   { id: 'antenna', name: 'Antenna band', level: 4 },
   { id: 'crown', name: 'Star crown', level: 8 },
+  { id: 'toadstool', name: 'Toadstool cap', chest: true },
 ];
 
 export const VISOR: Opt[] = [
@@ -177,6 +180,7 @@ export const OUTFIT_COLOR: Opt[] = [
   { id: 'cream', name: 'Cream', color: '#D9D2C2' },
   { id: 'coral', name: 'Coral', color: '#D86D5A', level: 3 },
   { id: 'gold', name: 'Gilded', color: '#C99A45', level: 6 },
+  { id: 'berry', name: 'Berry cloak', color: '#C2503F', chest: true },
 ];
 
 export const ACCESSORY: Opt[] = [
@@ -274,6 +278,15 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
+/** Items that only come from treasure chests. `key` is the Look field they equip into. */
+export const CHEST_ITEMS: { id: string; key: keyof Look; name: string; kind: string; rarity: string }[] = [
+  { id: 'toadstool', key: 'headwear', name: 'Toadstool cap', kind: 'Hat', rarity: 'Rare hat' },
+  { id: 'berry', key: 'outfitColor', name: 'Berry cloak', kind: 'Cloak', rarity: 'Rare cloak' },
+];
+
+/** Locked by level, or (for chest items) until it has been found. */
+export const isLocked = (o: Opt, level: number, found: string[]) => (o.chest ? !found.includes(o.id) : (o.level ?? 1) > level);
+
 export const pick = (list: Opt[], id: string) => list.find((o) => o.id === id) ?? list[0];
 
 /** Count of unlockable items that open at a level, for the level-up screen. */
@@ -297,9 +310,9 @@ export function lookUnlocksAt(level: number) {
   return all.flatMap(([list, kind]) => list.filter((o) => o.level === level).map((o) => `${o.name} ${kind}`));
 }
 
-export function randomLook(level: number, prev: Look): Look {
+export function randomLook(level: number, prev: Look, found: string[] = []): Look {
   const r = (list: Opt[]) => {
-    const ok = list.filter((o) => (o.level ?? 1) <= level);
+    const ok = list.filter((o) => !isLocked(o, level, found));
     return ok[Math.floor(Math.random() * ok.length)].id;
   };
   return {
@@ -345,7 +358,7 @@ export function lockedReset(look: Look): Partial<Look> {
   const out: Partial<Look> = {};
   for (const [key, list] of LOCKABLE) {
     const o = list.find((x) => x.id === look[key]);
-    if (o?.level && o.level > 1) (out as Record<string, string>)[key] = DEFAULT_LOOK[key];
+    if (o?.chest || (o?.level && o.level > 1)) (out as Record<string, string>)[key] = DEFAULT_LOOK[key];
   }
   return out;
 }

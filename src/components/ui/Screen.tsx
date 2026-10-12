@@ -6,7 +6,7 @@ import { space } from '@/theme/tokens';
 
 export function Screen({
   children,
-  maxWidth = 1120,
+  maxWidth = 780,
   scroll = true,
   contentStyle,
 }: {

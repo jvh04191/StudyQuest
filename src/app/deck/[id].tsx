@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useDeckStats } from '@/lib/hooks';
 import { cardStatus, isDue, statusLabel } from '@/lib/srs';
 import { relDue } from '@/lib/util';
+import { landName } from '@/lib/world';
 import { useNova } from '@/store/novaStore';
 import type { CardStatus } from '@/store/types';
 import { useStore } from '@/store/useStore';
@@ -19,14 +20,15 @@ import { color as C, radius, space } from '@/theme/tokens';
 const statusTone: Record<CardStatus, { tint: string; bg: string }> = {
   new: { tint: C.textMuted, bg: C.surface3 },
   seen: { tint: C.text, bg: C.surface4 },
-  proven: { tint: C.teal, bg: C.tealSoft },
-  mastered: { tint: C.gold, bg: C.goldSoft },
+  proven: { tint: C.mossInk, bg: C.mossSoft },
+  mastered: { tint: C.honeyInk, bg: C.honeySoft },
 };
 
 export default function DeckScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const deck = useStore((s) => s.decks.find((d) => d.id === id));
   const subject = useStore((s) => s.subjects.find((x) => x.id === deck?.subjectId));
+  const subjectIndex = useStore((s) => s.subjects.findIndex((x) => x.id === deck?.subjectId));
   const allCards = useStore((s) => s.cards);
   const states = useStore((s) => s.cardStates);
   const { addCards, updateCard, deleteCard, deleteDeck, updateDeck } = useStore.getState();
@@ -61,7 +63,7 @@ export default function DeckScreen() {
       <View style={{ flexDirection: 'row', gap: space.lg, alignItems: 'center' }}>
         <SubjectArt art={subject.art} tint={subject.color} size={64} />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <T v="caption" style={{ color: subject.color }}>{subject.name}</T>
+          <T v="eyebrow" style={{ color: subject.color }}>{landName(subject, subjectIndex)} · {subject.name}</T>
           {renaming ? (
             <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', flexWrap: 'wrap' }}>
               <Field value={title} onChangeText={setTitle} autoFocus accessibilityLabel="Deck title" style={{ flex: 1, minWidth: 200 }} />
@@ -91,7 +93,7 @@ export default function DeckScreen() {
           <T v="small">Mastery</T>
           <T v="small" style={{ color: C.text }}>{Math.round(st.mastery * 100)}%</T>
         </View>
-        <Bar value={st.mastery} tint={st.state === 'mastered' ? C.gold : C.teal} />
+        <Bar value={st.mastery} tint={st.state === 'mastered' ? C.honey : C.moss} height={12} />
         <T v="caption">
           Seen means you’ve reviewed a card. Proven means you answered it correctly on the first try without a hint. Mastered means you proved it and still remember it after a week or more.
         </T>
@@ -146,7 +148,7 @@ export default function DeckScreen() {
               }}
             />
           ) : (
-            <View key={c.id} style={{ flexDirection: 'row', gap: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: C.surface1, borderWidth: 1, borderColor: C.line, alignItems: 'flex-start' }}>
+            <View key={c.id} style={{ flexDirection: 'row', gap: space.md, padding: space.lg, borderRadius: 20, backgroundColor: C.surface1, borderWidth: 1.5, borderColor: C.panelBorder, boxShadow: `0 3px 0 ${C.panelShadow}`, marginBottom: 3, alignItems: 'flex-start' }}>
               <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                 <T v="bodyStrong">{c.front}</T>
                 <T v="small">{c.back}</T>
@@ -157,7 +159,7 @@ export default function DeckScreen() {
                     return (
                       <>
                         <Pill label={statusLabel[status]} tint={statusTone[status].tint} bg={statusTone[status].bg} />
-                        {isDue(s) ? <Pill icon="clock" label="Due now" tint={C.gold} bg={C.goldSoft} /> : s?.seen ? <Pill icon="clock" label={`Review ${relDue(s.due)}`} /> : null}
+                        {isDue(s) ? <Pill icon="clock" label="Due now" tint={C.berryInk} bg={C.berrySoft} /> : s?.seen ? <Pill icon="clock" label={`Review ${relDue(s.due)}`} /> : null}
                         {c.source?.page ? <Pill icon="doc" label={`p. ${c.source.page}`} /> : null}
                       </>
                     );
@@ -173,7 +175,7 @@ export default function DeckScreen() {
 
       <View style={{ marginTop: space.xl, gap: space.sm }}>
         {confirmDelete ? (
-          <Panel style={{ gap: space.md, borderColor: 'rgba(238,133,114,0.4)' }}>
+          <Panel style={{ gap: space.md, borderColor: C.berry, backgroundColor: C.berrySoft }}>
             <T v="bodyStrong">Delete “{deck.title}” and its {cards.length} cards?</T>
             <T v="small">This removes the deck and its review history. It can’t be undone.</T>
             <View style={{ flexDirection: 'row', gap: space.sm }}>

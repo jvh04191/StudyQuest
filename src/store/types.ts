@@ -92,6 +92,7 @@ export interface ItemResult {
   retry: boolean;
   proved: boolean;
   deckId: ID;
+  heartLost?: boolean;
 }
 
 export interface ActiveSession {
@@ -136,6 +137,20 @@ export interface SessionRecord {
   newUnlocks: string[];
   bossWon?: boolean;
   rewardSeen: boolean;
+  /** Acorns paid for finishing the quest. */
+  acorns: number;
+  /** Treasure chest earned by this quest (opened on the reward screen). */
+  chest?: ChestLoot;
+  chestOpened?: boolean;
+}
+
+export interface ChestLoot {
+  /** Acorns in the pouch. */
+  acorns: number;
+  /** Cosmetic id from CHEST_ITEMS, if the chest held one. */
+  itemId?: string;
+  /** Bigger chest for finishing the last daily quest. */
+  trail?: boolean;
 }
 
 export interface QuestDef {
@@ -167,6 +182,13 @@ export interface Player {
   look: Look;
   novaStyle: string;
   achievements: Record<string, number>;
+  /** Hearts left (max 5). A wrong answer costs one. */
+  hearts: number;
+  /** When the rest ends and hearts refill (ms), while out of hearts. */
+  restEndsAt?: number;
+  acorns: number;
+  /** Cosmetic ids found in treasure chests. */
+  found: string[];
   totals: {
     reviews: number;
     correct: number;
@@ -182,4 +204,10 @@ export interface Prefs {
   sound: boolean;
   motion: 'system' | 'reduce' | 'full';
   dailyGoal: number;
+  /** At zero hearts: wait 10 min, skip for acorns, skip free, or play without hearts. */
+  heartsMode: HeartsMode;
+  /** Home hero: the daily-quest trail, a cork notice board, or a night campfire. */
+  homeStyle: 'trail' | 'board' | 'hearth';
 }
+
+export type HeartsMode = 'wait' | 'acorns' | 'free' | 'off';

@@ -10,7 +10,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { haptic, useCalmMotion } from '@/lib/feedback';
 import { useNova } from '@/store/novaStore';
 import { useStore } from '@/store/useStore';
-import { color as C, font, layout, radius, size } from '@/theme/tokens';
+import { color as C, font, layout, radius } from '@/theme/tokens';
 
 const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: '/', label: 'Home', icon: 'home' },
@@ -18,6 +18,8 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: '/library', label: 'Library', icon: 'library' },
   { href: '/player', label: 'Player', icon: 'player' },
 ];
+
+const focusRing = { outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle;
 
 export function useLayoutMode() {
   const { width } = useWindowDimensions();
@@ -43,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setPrefs = useStore((s) => s.setPrefs);
   const setDockOpen = (v: boolean) => setPrefs({ novaDock: v });
   const calm = useCalmMotion();
-  const focus = path.startsWith('/study');
+  const focus = path.startsWith('/study') || path.startsWith('/rest');
 
   // On wide screens Nova lives beside the app: a request to open it docks the panel instead of a sheet.
   useEffect(() => {
@@ -62,23 +64,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: C.bg }}>
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <Image
         source={require('../../../assets/images/noise.png')}
         resizeMode="repeat"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.35 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.14 }}
       />
+      </View>
       {rail && !focus && <Rail path={path} onNova={toggleNova} novaOn={docked ? dockOpen : open} topInset={insets.top} bottomInset={insets.bottom} />}
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flex: 1 }}>{children}</View>
         {!rail && !focus && <TabBar path={path} bottomInset={insets.bottom} />}
       </View>
       {showDock && (
-        <View style={{ width: layout.novaWidth, paddingTop: insets.top, paddingBottom: insets.bottom, backgroundColor: C.surface1 }}>
+        <View
+          style={{
+            width: layout.novaWidth,
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+            backgroundColor: C.novaBg,
+            borderLeftWidth: 1.5,
+            borderLeftColor: '#E6D5B5',
+          }}>
           <NovaPanel docked onClose={() => setDockOpen(false)} />
         </View>
       )}
 
-      {/* Tucked Nova: a slim tab on the right edge, out of the way of content */}
+      {/* Floating Nova button */}
       {!showDock && !open && !path.startsWith('/avatar') && (
         <Pressable
           accessibilityRole="button"
@@ -88,24 +100,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           style={({ focused, pressed }: { focused?: boolean; pressed: boolean }) => [
             {
               position: 'absolute',
-              right: 0,
-              top: '42%',
-              width: 40,
-              paddingVertical: 12,
-              borderTopLeftRadius: radius.lg,
-              borderBottomLeftRadius: radius.lg,
-              backgroundColor: C.surface2,
-              borderWidth: 1,
-              borderRightWidth: 0,
-              borderColor: C.lineStrong,
+              right: 16,
+              bottom: rail ? 24 + insets.bottom : 104 + (focus ? insets.bottom - 40 : 0),
+              width: 62,
+              height: 62,
+              borderRadius: 31,
+              backgroundColor: C.surface1,
+              borderWidth: 1.5,
+              borderColor: C.panelBorder,
               alignItems: 'center',
-              gap: 6,
-              opacity: pressed ? 0.85 : 1,
+              justifyContent: 'center',
+              boxShadow: pressed ? `0 1px 0 ${C.panelShadow}` : `0 4px 0 ${C.panelShadow}, 0 8px 18px rgba(80,60,20,0.18)`,
+              transform: [{ translateY: pressed ? 3 : 0 }],
             },
-            focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle),
+            focused && focusRing,
           ]}>
           <NovaFab />
-          <Icon name="chevronLeft" size={16} color={C.textMuted} />
         </Pressable>
       )}
 
@@ -116,14 +126,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Pressable accessibilityLabel="Close Nova" onPress={() => setOpen(false)} style={{ flex: 1, backgroundColor: C.scrim }} />
           </Animated.View>
           <Animated.View
-            entering={calm ? undefined : rail ? SlideInRight.duration(260) : SlideInDown.duration(280)}
+            entering={calm ? undefined : rail ? SlideInRight.duration(300) : SlideInDown.duration(300)}
             exiting={calm ? undefined : rail ? SlideOutRight.duration(200) : SlideOutDown.duration(220)}
             style={
               rail
-                ? { position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(420, layout.novaWidth + 40), paddingTop: insets.top, paddingBottom: insets.bottom, backgroundColor: C.surface1, borderTopLeftRadius: radius.xl, borderBottomLeftRadius: radius.xl, overflow: 'hidden' }
-                : { position: 'absolute', left: 0, right: 0, bottom: 0, height: '82%', paddingBottom: insets.bottom, backgroundColor: C.surface1, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, overflow: 'hidden' }
+                ? { position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(420, layout.novaWidth + 40), paddingTop: insets.top, paddingBottom: insets.bottom, backgroundColor: C.novaBg, borderTopLeftRadius: radius.xl, borderBottomLeftRadius: radius.xl, overflow: 'hidden' }
+                : { position: 'absolute', left: 0, right: 0, bottom: 0, height: '84%', paddingBottom: insets.bottom, backgroundColor: C.novaBg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, overflow: 'hidden' }
             }>
-            {!rail && <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.surface4, marginTop: 8 }} />}
+            {!rail && <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.lineStrong, marginTop: 8 }} />}
             <NovaPanel onClose={() => setOpen(false)} />
           </Animated.View>
         </View>
@@ -136,7 +146,7 @@ function NovaFab() {
   const mood = useNova((s) => s.mood);
   const busy = useNova((s) => s.busy);
   const styleId = useStore((s) => s.player.novaStyle);
-  return <NovaOrb size={30} mood={busy ? 'thinking' : mood} styleId={styleId} />;
+  return <NovaOrb size={40} mood={busy ? 'thinking' : mood} styleId={styleId} />;
 }
 
 function Rail({ path, onNova, novaOn, topInset, bottomInset }: { path: string; onNova: () => void; novaOn: boolean; topInset: number; bottomInset: number }) {
@@ -149,11 +159,24 @@ function Rail({ path, onNova, novaOn, topInset, bottomInset }: { path: string; o
         paddingBottom: bottomInset + 18,
         alignItems: 'center',
         gap: 6,
-        borderRightWidth: 1,
-        borderColor: C.line,
-        backgroundColor: 'rgba(5,8,15,0.6)',
+        borderRightWidth: 1.5,
+        borderColor: C.railBorder,
+        backgroundColor: C.railBg,
       }}>
-      <Image source={require('../../../assets/images/favicon.png')} style={{ width: 34, height: 34, borderRadius: 9, marginBottom: 18 }} accessibilityLabel="StudyQuest" />
+      <View
+        accessibilityLabel="StudyQuest"
+        style={{
+          width: 46,
+          height: 46,
+          borderRadius: 14,
+          backgroundColor: C.moss,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 18,
+          boxShadow: `0 3px 0 ${C.mossShadow}, inset 0 1.5px 0 rgba(255,255,255,0.28)`,
+        }}>
+        <Text style={{ fontFamily: font.display, fontSize: 19, color: '#FFFFFF' }}>SQ</Text>
+      </View>
       {NAV.map((n) => (
         <NavItem key={n.href} {...n} active={isActive(path, n.href)} vertical />
       ))}
@@ -164,11 +187,11 @@ function Rail({ path, onNova, novaOn, topInset, bottomInset }: { path: string; o
         accessibilityState={{ expanded: novaOn }}
         onPress={onNova}
         style={({ focused }: { pressed: boolean; focused?: boolean }) => [
-          { alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: radius.md, width: 70 },
-          focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
+          { alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: radius.md, width: 72 },
+          focused && focusRing,
         ]}>
-        <NovaOrb size={40} styleId={styleId} />
-        <Text style={{ fontFamily: font.bodySemi, fontSize: 11, color: novaOn ? C.teal : C.textMuted }}>Nova</Text>
+        <NovaOrb size={38} styleId={styleId} />
+        <Text style={{ fontFamily: font.bodyBold, fontSize: 11.5, color: novaOn ? C.mossInk : C.navInactive }}>Nova</Text>
       </Pressable>
     </View>
   );
@@ -180,10 +203,11 @@ function TabBar({ path, bottomInset }: { path: string; bottomInset: number }) {
       style={{
         flexDirection: 'row',
         paddingBottom: bottomInset + 4,
-        paddingTop: 6,
-        borderTopWidth: 1,
-        borderColor: C.line,
-        backgroundColor: 'rgba(8,12,23,0.96)',
+        paddingTop: 8,
+        paddingHorizontal: 6,
+        borderTopWidth: 1.5,
+        borderColor: C.railBorder,
+        backgroundColor: C.railBg,
       }}>
       {NAV.map((n) => (
         <NavItem key={n.href} {...n} active={isActive(path, n.href)} />
@@ -202,21 +226,23 @@ function NavItem({ href, label, icon, active, vertical }: { href: string; label:
         haptic('light');
         if (!active) router.navigate(href as never);
       }}
-      style={({ focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
+      style={({ focused }: { pressed: boolean; focused?: boolean }) => [
         {
           flex: vertical ? undefined : 1,
-          width: vertical ? 70 : undefined,
-          minHeight: 56,
+          width: vertical ? 72 : undefined,
+          minHeight: 58,
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 4,
-          borderRadius: radius.md,
-          backgroundColor: active && vertical ? C.surface2 : hovered ? C.surface1 : 'transparent',
+          gap: 3,
+          borderRadius: 16,
+          backgroundColor: active ? C.mossSoft : 'transparent',
+          borderWidth: 1.5,
+          borderColor: active ? C.mossLine : 'transparent',
         },
-        focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
+        focused && focusRing,
       ]}>
-      <Icon name={icon} size={22} color={active ? C.teal : C.textMuted} />
-      <Text style={{ fontFamily: font.bodySemi, fontSize: size.xs - 1, color: active ? C.text : C.textMuted }}>{label}</Text>
+      <Icon name={icon} size={24} color={active ? C.mossInk : C.navInactive} strokeWidth={active ? 2.1 : 1.9} />
+      <Text style={{ fontFamily: active ? font.heavy : font.bodyBold, fontSize: 11.5, color: active ? C.mossInk : C.navInactive }}>{label}</Text>
     </Pressable>
   );
 }

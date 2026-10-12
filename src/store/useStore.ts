@@ -3,8 +3,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 import { buildSeed } from '@/data/seed';
-import { DEFAULT_LOOK, lockedReset, type Look } from '@/lib/avatar';
-import { ACHIEVEMENTS, levelFromXp, newPlayer, unlocksAt, XP } from '@/lib/progression';
+import { CHEST_ITEMS, DEFAULT_LOOK, lockedReset, type Look } from '@/lib/avatar';
+import { ACHIEVEMENTS, ACORNS_PER_QUEST, HEARTS_MAX, levelFromXp, newPlayer, REST_MS, SKIP_COST, unlocksAt, XP } from '@/lib/progression';
 import { pickQuests, questProgress } from '@/lib/quests';
 import { cardStatus, deckStats, freshState, isDue, modeFor, schedule } from '@/lib/srs';
 import { DAY, dayKey, shuffle, uid, yesterdayKey } from '@/lib/util';
@@ -58,6 +58,12 @@ export interface AnswerInput {
 
 interface Actions {
   ensureToday: () => void;
+  /** Refill hearts when a rest has run out. Returns true if hearts were refilled. */
+  tickHearts: () => boolean;
+  /** Skip the rest according to the hearts setting. Returns false if not allowed (or too few acorns). */
+  skipRest: () => boolean;
+  /** Open a quest's treasure chest and apply the loot. */
+  openChest: (recordId: ID) => void;
   startSession: (kind: SessionKind, opts?: { deckIds?: ID[]; subjectId?: ID }) => ID | null;
   answer: (input: AnswerInput) => ItemResult | null;
   finishSession: () => SessionRecord | null;
@@ -91,7 +97,7 @@ function initialData(withProgress = true): Data {
   const seed = buildSeed(Date.now(), withProgress);
   const data: Data = {
     ...seed,
-    prefs: { sound: false, motion: 'system', dailyGoal: 20, novaDock: false },
+    prefs: { sound: false, motion: 'system', dailyGoal: 20, novaDock: false, heartsMode: 'acorns', homeStyle: 'trail' },
     daily: emptyDaily(dayKey()),
     active: null,
     history: [],
@@ -244,8 +250,38 @@ export const useStore = create<StoreState>()(
         set({ daily, player });
       },
 
+      tickHearts: () => {
+        const p = get().player;
+        if (p.restEndsAt && Date.now() >= p.restEndsAt) {
+          set({ player: { ...p, hearts: HEARTS_MAX, restEndsAt: undefined } });
+          return true;
+        }
+        return false;
+      },
+
+      skipRest: () => {
+        const s = get();
+        const mode = s.prefs.heartsMode;
+        if (mode === 'wait') return false;
+        if (mode === 'acorns' && s.player.acorns < SKIP_COST) return false;
+        const acorns = mode === 'acorns' ? s.player.acorns - SKIP_COST : s.player.acorns;
+        set({ player: { ...s.player, acorns, hearts: HEARTS_MAX, restEndsAt: undefined } });
+        return true;
+      },
+
+      openChest: (recordId) => {
+        const s = get();
+        const rec = s.history.find((h) => h.id === recordId);
+        if (!rec || !rec.chest || rec.chestOpened) return;
+        const player: Player = { ...s.player, found: [...s.player.found] };
+        player.acorns += rec.chest.acorns;
+        if (rec.chest.itemId && !player.found.includes(rec.chest.itemId)) player.found.push(rec.chest.itemId);
+        set({ player, history: s.history.map((h) => (h.id === recordId ? { ...h, chestOpened: true } : h)) });
+      },
+
       startSession: (kind, opts = {}) => {
         get().ensureToday();
+        get().tickHearts();
         const s = get();
         const now = Date.now();
         let deckIds = opts.deckIds ?? [];
@@ -342,9 +378,17 @@ export const useStore = create<StoreState>()(
         }
         player.xp += xp;
 
+        // Hearts: a wrong answer costs one; at zero the explorer has to rest.
+        let heartLost = false;
+        if (quiz && !input.correct && s.prefs.heartsMode !== 'off' && player.hearts > 0) {
+          player.hearts -= 1;
+          heartLost = true;
+          if (player.hearts === 0) player.restEndsAt = now + REST_MS;
+        }
+
         const result: ItemResult = {
           cardId: card.id, deckId: card.deckId, mode: item.mode, correct: quiz ? input.correct : rating >= 3,
-          firstTry: input.firstTry, usedHint: input.usedHint, rating, xp, xpNote, wasDue, retry: !!item.retry, proved,
+          firstTry: input.firstTry, usedHint: input.usedHint, rating, xp, xpNote, wasDue, retry: !!item.retry, proved, heartLost,
         };
 
         // Another chance later in the quest for anything missed.
@@ -411,6 +455,7 @@ export const useStore = create<StoreState>()(
             if (results.some((r) => r.deckId === d)) daily.sessionsByDeck[d] = (daily.sessionsByDeck[d] ?? 0) + 1;
           });
         }
+        const wasAllDone = daily.quests.length > 0 && daily.quests.every((q) => daily.questsDone.includes(q.id));
         for (const q of daily.quests) {
           if (!daily.questsDone.includes(q.id) && questProgress(q, daily) >= q.goal) {
             daily.questsDone.push(q.id);
@@ -419,6 +464,18 @@ export const useStore = create<StoreState>()(
           }
         }
         player.xp += bonus;
+
+        // Acorns and a treasure chest for a finished quest; a bigger chest when the daily trail is complete.
+        const questDone = results.length >= 4 && itemXp > 0;
+        const trailDone = !wasAllDone && daily.quests.length > 0 && daily.quests.every((q) => daily.questsDone.includes(q.id));
+        const acorns = questDone ? ACORNS_PER_QUEST : 0;
+        player.acorns += acorns;
+        let chest: SessionRecord['chest'];
+        if (questDone) {
+          const unfound = CHEST_ITEMS.filter((i) => !player.found.includes(i.id));
+          const item = unfound.length && Math.random() < 0.5 ? unfound[Math.floor(Math.random() * unfound.length)] : undefined;
+          chest = { acorns: 10 + Math.floor(Math.random() * 16) + (trailDone ? 30 : 0), itemId: item?.id, trail: trailDone || undefined };
+        }
 
         // Achievements
         const earned: string[] = [];
@@ -465,6 +522,8 @@ export const useStore = create<StoreState>()(
           newUnlocks: unlocks,
           bossWon,
           rewardSeen: false,
+          acorns,
+          chest,
         };
         set({
           player,
@@ -598,7 +657,12 @@ export const useStore = create<StoreState>()(
           return { cards, cardStates };
         }),
 
-      setPrefs: (p) => set((s) => ({ prefs: { ...s.prefs, ...p } })),
+      setPrefs: (p) =>
+        set((s) => ({
+          prefs: { ...s.prefs, ...p },
+          // Turning hearts off ends any rest in progress.
+          player: p.heartsMode === 'off' ? { ...s.player, hearts: HEARTS_MAX, restEndsAt: undefined } : s.player,
+        })),
       setPlayer: (p) => set((s) => ({ player: { ...s.player, ...p } })),
       setLook: (p) => set((s) => ({ player: { ...s.player, look: { ...s.player.look, ...p } } })),
 
@@ -622,9 +686,16 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'studyquest-v1',
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const st = persisted as Partial<Data> & { player?: Player & { visor?: string; frame?: string } };
+        if (version < 3) {
+          // Cozy redesign: hearts, acorns and chest finds.
+          if (st.player) st.player = { ...st.player, hearts: HEARTS_MAX, acorns: 0, found: [] };
+          if (st.prefs) st.prefs = { ...st.prefs, heartsMode: 'acorns', homeStyle: 'trail' };
+          if (st.subjects) st.subjects = st.subjects.map((x, i) => ({ ...x, color: subjectPalette[i % subjectPalette.length] }));
+          if (st.history) st.history = st.history.map((h) => ({ ...h, acorns: 0, rewardSeen: true }));
+        }
         if (version < 2 && st.player) {
           const old = st.player;
           st.player = { ...old, look: { ...DEFAULT_LOOK, visor: old.visor ?? 'teal', frame: old.frame ?? 'plain' } };

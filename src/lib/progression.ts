@@ -18,6 +18,11 @@ export function levelProgress(xp: number) {
 }
 
 // XP rules. XP rewards effort and accuracy; mastery is tracked separately on cards.
+export const HEARTS_MAX = 5;
+export const REST_MS = 10 * 60 * 1000;
+export const SKIP_COST = 30;
+export const ACORNS_PER_QUEST = 20;
+
 export const XP = {
   flash: 4,
   correctFirst: 10,
@@ -38,9 +43,9 @@ export interface Cosmetic {
 }
 
 export const NOVA_STYLES: Cosmetic[] = [
-  { id: 'core', name: 'Tidal core', level: 1, color: '#38D6C6', color2: '#1B8C83' },
-  { id: 'ember', name: 'Ember core', level: 4, color: '#E7B75F', color2: '#B5673A' },
-  { id: 'aurora', name: 'Aurora core', level: 6, color: '#A9B4FF', color2: '#38D6C6' },
+  { id: 'core', name: 'Tidal glow', level: 1, color: '#5FB8AE', color2: '#2F7F78' },
+  { id: 'ember', name: 'Ember glow', level: 4, color: '#F0A845', color2: '#B5673A' },
+  { id: 'aurora', name: 'Aurora glow', level: 6, color: '#A99BD1', color2: '#5C7FB8' },
 ];
 
 export function unlocksAt(level: number) {
@@ -78,6 +83,9 @@ export function newPlayer(): Player {
     look: { ...DEFAULT_LOOK },
     novaStyle: 'core',
     achievements: {},
+    hearts: HEARTS_MAX,
+    acorns: 0,
+    found: [],
     totals: { reviews: 0, correct: 0, improvements: 0, sessions: 0, bossWins: 0 },
   };
 }

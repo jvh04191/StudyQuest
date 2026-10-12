@@ -1,12 +1,8 @@
-import {
-  HankenGrotesk_400Regular,
-  HankenGrotesk_500Medium,
-  HankenGrotesk_600SemiBold,
-  HankenGrotesk_700Bold,
-} from '@expo-google-fonts/hanken-grotesk';
-import { Unbounded_500Medium, Unbounded_600SemiBold } from '@expo-google-fonts/unbounded';
+import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
+import { PixelifySans_500Medium, PixelifySans_600SemiBold, PixelifySans_700Bold } from '@expo-google-fonts/pixelify-sans';
+import { YoungSerif_400Regular } from '@expo-google-fonts/young-serif';
 import { useFonts } from 'expo-font';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -21,8 +17,8 @@ import { color as C } from '@/theme/tokens';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const navTheme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: 'transparent', card: C.surface1, text: C.text, primary: C.teal, border: C.line },
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: 'transparent', card: C.surface1, text: C.text, primary: C.moss, border: C.panelBorder },
 };
 
 function useHydrated() {
@@ -43,12 +39,14 @@ function useHydrated() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Unbounded_500Medium,
-    Unbounded_600SemiBold,
-    HankenGrotesk_400Regular,
-    HankenGrotesk_500Medium,
-    HankenGrotesk_600SemiBold,
-    HankenGrotesk_700Bold,
+    YoungSerif_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
+    PixelifySans_500Medium,
+    PixelifySans_600SemiBold,
+    PixelifySans_700Bold,
   });
   const hydrated = useHydrated();
   const ready = fontsLoaded && hydrated;
@@ -69,7 +67,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider style={{ backgroundColor: C.bg }}>
       <ThemeProvider value={navTheme}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <AppShell>
           <Stack
             screenOptions={{

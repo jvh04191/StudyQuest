@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, View, type ViewStyle } from 'react-native';
 
 import { NovaOrb } from '@/components/art/NovaOrb';
@@ -11,6 +11,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Button, Field, IconButton, Panel, Pill, Segmented, T } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
 import { generateStudySet, quickExtract } from '@/lib/ai';
+import { Bar } from '@/components/ui/primitives';
+import { landName } from '@/lib/world';
 import { useNova } from '@/store/novaStore';
 import { useStore, type DraftCard } from '@/store/useStore';
 import { color as C, font, radius, size, space } from '@/theme/tokens';
@@ -132,12 +134,13 @@ export default function Create() {
     <Screen maxWidth={820}>
       <Button kind="ghost" small icon="chevronLeft" label="Back" onPress={() => goBackOr('/library')} />
       <View style={{ gap: 4 }}>
-        <T v="title" accessibilityRole="header">New deck</T>
+        <T v="eyebrow" style={{ color: C.textFaint }}>Library</T>
+        <T v="title" accessibilityRole="header">Brew a new deck</T>
         <T v="small">Add your material, review the cards, then save. Nothing is saved until you choose to.</T>
       </View>
 
       <Panel style={{ gap: space.lg }}>
-        <T v="heading">1. Where it belongs</T>
+        <T v="heading">1. Which land?</T>
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {subjects.map((s) => {
             const on = s.id === subjectId;
@@ -148,11 +151,11 @@ export default function Create() {
                 accessibilityState={{ selected: on }}
                 onPress={() => setSubjectId(s.id)}
                 style={({ focused }: { pressed: boolean; focused?: boolean }) => [
-                  { flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1.5, borderColor: on ? s.color : C.lineStrong, backgroundColor: on ? C.surface3 : 'transparent' },
-                  focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
+                  { flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1.5, borderColor: on ? C.moss : C.panelBorder, backgroundColor: on ? C.mossSoft : C.surface1 },
+                  focused && ({ outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
                 ]}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: s.color }} />
-                <T v="bodyStrong" style={{ fontSize: size.sm }}>{s.name}</T>
+                <T v="bodyStrong" style={{ fontSize: size.sm }}>{landName(s, subjects.indexOf(s))}</T>
               </Pressable>
             );
           })}
@@ -160,11 +163,11 @@ export default function Create() {
             accessibilityRole="radio"
             accessibilityState={{ selected: !subjectId }}
             onPress={() => setSubjectId('')}
-            style={{ height: 42, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1.5, borderColor: !subjectId ? C.teal : C.lineStrong, borderStyle: 'dashed', justifyContent: 'center' }}>
-            <T v="bodyStrong" style={{ fontSize: size.sm }}>New subject</T>
+            style={{ height: 42, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1.5, borderColor: !subjectId ? C.moss : C.lineStrong, backgroundColor: !subjectId ? C.mossSoft : 'transparent', borderStyle: 'dashed', justifyContent: 'center' }}>
+            <T v="bodyStrong" style={{ fontSize: size.sm }}>New land</T>
           </Pressable>
         </View>
-        {!subjectId && <Field label="New subject name" value={newSubject} onChangeText={setNewSubject} placeholder="e.g. Chemistry" />}
+        {!subjectId && <Field label="Name of the new land" value={newSubject} onChangeText={setNewSubject} placeholder="e.g. Chemistry" />}
         <Field label="Deck title" value={title} onChangeText={setTitle} placeholder="e.g. The Krebs Cycle" />
       </Panel>
 
@@ -178,9 +181,9 @@ export default function Create() {
             setError(null);
           }}
           options={[
-            { value: 'notes', label: 'Paste notes', icon: 'doc' },
-            { value: 'pdf', label: 'Upload PDF', icon: 'upload' },
-            { value: 'manual', label: 'Write cards', icon: 'pen' },
+            { value: 'notes', label: 'Notes', icon: 'doc' },
+            { value: 'pdf', label: 'PDF', icon: 'upload' },
+            { value: 'manual', label: 'By hand', icon: 'pen' },
           ]}
         />
 
@@ -225,7 +228,7 @@ export default function Create() {
               placeholder={'Paste lecture notes, a textbook section or your own summary.\n\nTip: lines like “Osmosis: movement of water across a membrane” also work with Quick extract.'}
             />
             <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-              <Button icon="sparkle" label="Generate with Nova" disabled={ai !== 'on' || notes.trim().length < 40 || !!busy} onPress={generate} />
+              <Button icon="sparkle" label="Brew cards with Nova" disabled={ai !== 'on' || notes.trim().length < 40 || !!busy} onPress={generate} />
               <Button kind="secondary" label="Quick extract (not AI)" disabled={notes.trim().length < 10 || !!busy} onPress={extract} />
             </View>
             {notes.trim().length > 0 && notes.trim().length < 40 && ai === 'on' && <T v="caption">Add a few more sentences so Nova has enough to work with.</T>}
@@ -246,7 +249,7 @@ export default function Create() {
             ) : (
               <Button kind="secondary" icon="upload" label="Choose a PDF" onPress={pickPdf} />
             )}
-            <Button icon="sparkle" label="Generate with Nova" disabled={ai !== 'on' || !pdf || !!busy} onPress={generate} />
+            <Button icon="sparkle" label="Brew cards with Nova" disabled={ai !== 'on' || !pdf || !!busy} onPress={generate} />
           </View>
         )}
 
@@ -270,8 +273,11 @@ export default function Create() {
 
         {busy && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md, backgroundColor: C.surface2 }} accessibilityLiveRegion="polite">
-            <NovaOrb size={44} mood="thinking" />
-            <T v="body">{busy}</T>
+            <NovaOrb size={52} mood="thinking" styleId="ember" />
+            <View style={{ flex: 1, gap: 8 }}>
+              <T v="body">{busy}</T>
+              <BrewBar />
+            </View>
           </View>
         )}
         {error && (
@@ -305,7 +311,7 @@ export default function Create() {
                 }}
               />
             ) : (
-              <View key={i} style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.md, borderRadius: radius.md, backgroundColor: d.keep ? C.surface2 : 'transparent', borderWidth: 1, borderColor: C.line, opacity: d.keep ? 1 : 0.55 }}>
+              <View key={i} style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.md, borderRadius: radius.md, backgroundColor: d.keep ? C.surface2 : 'transparent', borderWidth: 1, borderColor: C.panelBorder, opacity: d.keep ? 1 : 0.55 }}>
                 <Pressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: d.keep }}
@@ -335,4 +341,14 @@ export default function Create() {
       )}
     </Screen>
   );
+}
+
+/** Indeterminate progress while Nova brews: a moss bar that keeps creeping forward. */
+function BrewBar() {
+  const [v, setV] = useState(0.08);
+  useEffect(() => {
+    const t = setInterval(() => setV((x) => (x >= 0.92 ? 0.92 : x + (1 - x) * 0.06)), 600);
+    return () => clearInterval(t);
+  }, []);
+  return <Bar value={v} height={10} />;
 }

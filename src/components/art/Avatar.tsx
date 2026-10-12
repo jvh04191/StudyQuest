@@ -370,6 +370,17 @@ function Headwear({ kind, tint, tint2, accent }: { kind: string; tint: string; t
           <Path d={star4(42, 31, 3, 1)} fill={tint} />
         </G>
       );
+    case 'toadstool':
+      return (
+        <G>
+          <Path d="M29 40 C29 24 40 16 50 16 C60 16 71 24 71 40 C62 36.5 38 36.5 29 40 Z" fill="#C2503F" />
+          <Path d="M29 40 C38 36.5 62 36.5 71 40 L70 42 C61 39 39 39 30 42 Z" fill="#F6E7C8" />
+          <Circle cx={41} cy={27} r={3.2} fill="#FFF4DE" />
+          <Circle cx={56} cy={23.5} r={2.6} fill="#FFF4DE" />
+          <Circle cx={61.5} cy={32} r={2} fill="#FFF4DE" />
+          <Circle cx={48} cy={33} r={1.7} fill="#FFF4DE" />
+        </G>
+      );
     case 'band':
       return <Path d="M32.5 37 C38 31.5 62 31.5 67.5 37 L67 41.5 C61 36.5 39 36.5 33 41.5 Z" fill={tint} />;
     case 'antenna':
@@ -541,7 +552,7 @@ export function Avatar({ size = 64, look = DEFAULT_LOOK, label }: { size?: numbe
   const outfitColor = pick(OUTFIT_COLOR, L.outfitColor).color!;
   const lip = shade(skin, -0.45);
   const helmet = L.headwear === 'helmet';
-  const hatHidesHair = L.headwear === 'beanie' || L.headwear === 'cap' || L.headwear === 'crown';
+  const hatHidesHair = L.headwear === 'beanie' || L.headwear === 'cap' || L.headwear === 'crown' || L.headwear === 'toadstool';
   const hairStyle = hatHidesHair && !['long', 'bob', 'pony', 'braids', 'afro'].includes(L.hair) ? 'none' : L.hair;
 
   return (

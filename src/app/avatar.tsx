@@ -7,7 +7,7 @@ import { Avatar } from '@/components/art/Avatar';
 import { goBackOr } from '@/components/map/TopicSheet';
 import { Icon } from '@/components/ui/Icon';
 import { Button, Field, T } from '@/components/ui/primitives';
-import { CATEGORIES, randomLook, type Look, type Opt, type Section } from '@/lib/avatar';
+import { CATEGORIES, isLocked, randomLook, type Look, type Opt, type Section } from '@/lib/avatar';
 import { haptic } from '@/lib/feedback';
 import { useLevel } from '@/lib/hooks';
 import { useNova } from '@/store/novaStore';
@@ -22,6 +22,7 @@ export default function AvatarCreator() {
   const setLook = useStore((s) => s.setLook);
   const setPlayer = useStore((s) => s.setPlayer);
   const { level } = useLevel();
+  const found = useStore((s) => s.player.found);
   const [tab, setTab] = useState(CATEGORIES[0].id);
   const [name, setName] = useState(playerName);
   const setContext = useNova((s) => s.setContext);
@@ -41,7 +42,7 @@ export default function AvatarCreator() {
           small
           icon="refresh"
           label="Randomize"
-          onPress={() => setLook(randomLook(level, look))}
+          onPress={() => setLook(randomLook(level, look, found))}
         />
       </View>
       <Field
@@ -54,7 +55,7 @@ export default function AvatarCreator() {
         style={{ alignSelf: 'stretch' }}
       />
       <T v="caption" style={{ textAlign: 'center' }}>
-        Items with a lock open up as you level up. You’re level {level}.
+        Locked items open up as you level up, or turn up in treasure chests. You’re level {level}.
       </T>
     </View>
   );
@@ -69,11 +70,12 @@ export default function AvatarCreator() {
           flexDirection: 'row',
           alignItems: 'center',
           gap: space.md,
-          borderBottomWidth: 1,
-          borderColor: C.line,
+          borderBottomWidth: 1.5,
+          borderColor: C.railBorder,
+          backgroundColor: C.railBg,
         }}>
         <Button kind="ghost" small icon="chevronLeft" label="Back" onPress={() => { saveName(); goBackOr('/'); }} />
-        <T v="heading" style={{ flex: 1 }} accessibilityRole="header">Explorer creator</T>
+        <T v="heading" style={{ flex: 1 }} accessibilityRole="header">Dress your explorer</T>
         <Button small icon="check" label="Done" onPress={() => { saveName(); goBackOr('/'); }} />
       </View>
 
@@ -99,19 +101,21 @@ export default function AvatarCreator() {
                         paddingHorizontal: 16,
                         borderRadius: radius.pill,
                         justifyContent: 'center',
-                        backgroundColor: on ? C.teal : C.surface2,
-                        borderWidth: 1,
-                        borderColor: on ? C.teal : C.line,
+                        backgroundColor: on ? C.moss : C.surface1,
+                        borderWidth: 1.5,
+                        borderColor: on ? C.moss : C.panelBorder,
+                        boxShadow: on ? `0 3px 0 ${C.mossShadow}` : `0 3px 0 ${C.panelShadow}`,
+                        marginBottom: 3,
                       },
-                      focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle),
+                      focused && ({ outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle),
                     ]}>
-                    <Text style={{ fontFamily: font.bodySemi, fontSize: size.sm, color: on ? C.onAccent : C.text }}>{c.label}</Text>
+                    <Text style={{ fontFamily: font.bodyBold, fontSize: size.sm, color: on ? '#FFFFFF' : C.text }}>{c.label}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
             {category.sections.map((sec) => (
-              <SectionGrid key={sec.key} section={sec} look={look} level={level} onPick={(id) => setLook({ [sec.key]: id } as Partial<Look>)} />
+              <SectionGrid key={sec.key} section={sec} look={look} level={level} found={found} onPick={(id) => setLook({ [sec.key]: id } as Partial<Look>)} />
             ))}
           </View>
         </View>
@@ -128,14 +132,14 @@ function previewLook(look: Look, key: keyof Look, id: string): Look {
   return out;
 }
 
-function SectionGrid({ section, look, level, onPick }: { section: Section; look: Look; level: number; onPick: (id: string) => void }) {
+function SectionGrid({ section, look, level, found, onPick }: { section: Section; look: Look; level: number; found: string[]; onPick: (id: string) => void }) {
   const current = look[section.key];
   return (
     <View style={{ gap: space.md }}>
       <T v="bodyStrong">{section.title}</T>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: section.swatch ? space.md : space.sm }}>
         {section.options.map((o) => (
-          <OptionTile key={o.id} opt={o} swatch={!!section.swatch} selected={o.id === current} locked={(o.level ?? 1) > level} preview={previewLook(look, section.key, o.id)} onPick={() => onPick(o.id)} />
+          <OptionTile key={o.id} opt={o} swatch={!!section.swatch} selected={o.id === current} locked={isLocked(o, level, found)} preview={previewLook(look, section.key, o.id)} onPick={() => onPick(o.id)} />
         ))}
       </View>
     </View>
@@ -143,7 +147,8 @@ function SectionGrid({ section, look, level, onPick }: { section: Section; look:
 }
 
 function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: Opt; swatch: boolean; selected: boolean; locked: boolean; preview: Look; onPick: () => void }) {
-  const label = locked ? `${opt.name}, unlocks at level ${opt.level}` : opt.name;
+  const lockText = opt.chest ? 'Found in chests' : `Level ${opt.level}`;
+  const label = locked ? `${opt.name}, ${opt.chest ? 'found in treasure chests' : `unlocks at level ${opt.level}`}` : opt.name;
   if (swatch) {
     return (
       <Pressable
@@ -157,7 +162,7 @@ function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: O
         }}
         style={({ focused }: { pressed: boolean; focused?: boolean }) => [
           { alignItems: 'center', gap: 4, width: 64, opacity: locked ? 0.45 : 1 },
-          focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', borderRadius: 12 } as ViewStyle),
+          focused && ({ outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid', borderRadius: 12 } as ViewStyle),
         ]}>
         <View
           style={{
@@ -166,7 +171,7 @@ function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: O
             borderRadius: 23,
             padding: 3,
             borderWidth: 2,
-            borderColor: selected ? C.teal : 'transparent',
+            borderColor: selected ? C.moss : 'transparent',
           }}>
           <View style={{ flex: 1, borderRadius: 20, backgroundColor: opt.color, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
             {opt.color2 ? <View style={{ position: 'absolute', right: 0, bottom: 0, width: '50%', height: '100%', backgroundColor: opt.color2 }} /> : null}
@@ -174,7 +179,7 @@ function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: O
           </View>
         </View>
         <T v="caption" numberOfLines={1} style={{ color: selected ? C.text : C.textMuted, fontSize: 11 }}>
-          {locked ? `Level ${opt.level}` : opt.name}
+          {locked ? lockText : opt.name}
         </T>
       </Pressable>
     );
@@ -195,14 +200,16 @@ function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: O
           alignItems: 'center',
           gap: 4,
           paddingVertical: space.sm,
-          borderRadius: radius.lg,
-          borderWidth: 1.5,
-          borderColor: selected ? C.teal : C.line,
-          backgroundColor: selected ? C.surface3 : C.surface1,
+          borderRadius: 18,
+          borderWidth: 2,
+          borderColor: selected ? C.moss : C.panelBorder,
+          backgroundColor: selected ? C.mossSoft : C.surface1,
+          boxShadow: `0 3px 0 ${selected ? C.mossLine2 : C.panelShadow}`,
+          marginBottom: 3,
           opacity: locked ? 0.45 : 1,
           transform: [{ scale: pressed ? 0.96 : 1 }],
         },
-        focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
+        focused && ({ outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
       ]}>
       <Avatar size={68} look={preview} label={opt.name} />
       <T v="caption" numberOfLines={1} style={{ color: selected ? C.text : C.textMuted, textAlign: 'center', paddingHorizontal: 4 }}>
@@ -211,7 +218,7 @@ function OptionTile({ opt, swatch, selected, locked, preview, onPick }: { opt: O
       {locked && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           <Icon name="lock" size={11} color={C.textFaint} />
-          <T v="caption" style={{ color: C.textFaint, fontSize: 11 }}>Level {opt.level}</T>
+          <T v="caption" style={{ color: C.textFaint, fontSize: 11 }}>{lockText}</T>
         </View>
       )}
     </Pressable>

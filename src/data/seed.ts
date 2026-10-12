@@ -19,8 +19,8 @@ interface DeckSeed {
 }
 
 export const SEED_SUBJECTS: Omit<Subject, 'createdAt'>[] = [
-  { id: 'bio', name: 'Biology', color: '#5BC79A', art: 'biology', cx: 270, cy: 330 },
-  { id: 'astro', name: 'Astronomy', color: '#8C9CFF', art: 'astronomy', cx: 735, cy: 320 },
+  { id: 'bio', name: 'Biology', color: '#5E8F4C', art: 'biology', cx: 270, cy: 330 },
+  { id: 'astro', name: 'Astronomy', color: '#6D74B8', art: 'astronomy', cx: 735, cy: 320 },
 ];
 
 const DECKS: DeckSeed[] = [

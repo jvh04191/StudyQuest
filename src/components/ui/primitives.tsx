@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, type ReactNode } from 'react';
 import {
   Pressable,
@@ -11,33 +12,29 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { haptic, sound, useCalmMotion } from '@/lib/feedback';
 import { color as C, font, radius, size, space } from '@/theme/tokens';
 import { Icon, type IconName } from './Icon';
 
+const focusRing = { outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 3 } as ViewStyle;
+
 /* ---------- Text ---------- */
 
-type Variant = 'hero' | 'title' | 'heading' | 'subheading' | 'body' | 'bodyStrong' | 'small' | 'caption' | 'number';
+type Variant = 'hero' | 'title' | 'heading' | 'subheading' | 'body' | 'bodyStrong' | 'small' | 'caption' | 'eyebrow' | 'number';
 const variants: Record<Variant, TextStyle> = {
-  hero: { fontFamily: font.display, fontSize: size.hero, lineHeight: 44, letterSpacing: -0.6, color: C.text },
-  title: { fontFamily: font.display, fontSize: size.xxl, lineHeight: 36, letterSpacing: -0.4, color: C.text },
-  heading: { fontFamily: font.display, fontSize: size.lg, lineHeight: 26, letterSpacing: -0.1, color: C.text },
-  subheading: { fontFamily: font.bodySemi, fontSize: size.lg, lineHeight: 24, color: C.text },
-  body: { fontFamily: font.body, fontSize: size.md, lineHeight: 24, color: C.text },
-  bodyStrong: { fontFamily: font.bodySemi, fontSize: size.md, lineHeight: 22, color: C.text },
-  small: { fontFamily: font.body, fontSize: size.sm, lineHeight: 20, color: C.textMuted },
-  caption: { fontFamily: font.bodyMedium, fontSize: size.xs, lineHeight: 16, color: C.textMuted, letterSpacing: 0.2 },
-  number: { fontFamily: font.displayBold, fontSize: size.md, color: C.text, fontVariant: ['tabular-nums'] },
+  hero: { fontFamily: font.display, fontSize: size.hero, lineHeight: 40, color: C.text },
+  title: { fontFamily: font.display, fontSize: size.xxl, lineHeight: 32, color: C.text },
+  heading: { fontFamily: font.display, fontSize: 20, lineHeight: 26, color: C.text },
+  subheading: { fontFamily: font.bodyBold, fontSize: 17, lineHeight: 23, color: C.text },
+  body: { fontFamily: font.body, fontSize: size.md, lineHeight: 22, color: C.text },
+  bodyStrong: { fontFamily: font.bodyBold, fontSize: size.md, lineHeight: 22, color: C.text },
+  small: { fontFamily: font.body, fontSize: 13.5, lineHeight: 19, color: C.textMuted },
+  caption: { fontFamily: font.bodyBold, fontSize: size.xs, lineHeight: 16, color: C.textMuted },
+  eyebrow: { fontFamily: font.bodyBold, fontSize: 11, lineHeight: 14, color: C.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
+  number: { fontFamily: font.pixel, fontSize: size.md, color: C.text, fontVariant: ['tabular-nums'] },
 };
 
 export function T({ v = 'body', style, ...rest }: TextProps & { v?: Variant }) {
@@ -46,22 +43,33 @@ export function T({ v = 'body', style, ...rest }: TextProps & { v?: Variant }) {
 
 /* ---------- Buttons ---------- */
 
-type BtnKind = 'primary' | 'gold' | 'secondary' | 'ghost' | 'danger';
+type BtnKind = 'primary' | 'gold' | 'secondary' | 'ghost' | 'danger' | 'plum';
 const btnBg: Record<BtnKind, string> = {
-  primary: C.teal,
-  gold: C.gold,
-  secondary: C.surface3,
+  primary: C.moss,
+  gold: C.honey,
+  secondary: C.surface1,
   ghost: 'transparent',
-  danger: C.coralSoft,
+  danger: C.berry,
+  plum: C.plum,
+};
+const btnLip: Record<BtnKind, string> = {
+  primary: C.mossShadow,
+  gold: C.honeyShadow,
+  secondary: C.panelShadow,
+  ghost: 'transparent',
+  danger: C.berryShadow,
+  plum: C.plumShadow,
 };
 const btnFg: Record<BtnKind, string> = {
-  primary: C.onAccent,
-  gold: '#1D1404',
+  primary: '#FFFFFF',
+  gold: '#4A2E05',
   secondary: C.text,
-  ghost: C.text,
-  danger: C.coral,
+  ghost: C.textMuted,
+  danger: '#FFFFFF',
+  plum: C.onNight,
 };
 
+/** Chunky button: solid fill, 4px under-lip, presses down 3px. */
 export function Button({
   label,
   kind = 'primary',
@@ -87,49 +95,48 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }) {
-  const scale = useSharedValue(1);
-  const calm = useCalmMotion();
-  const a = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const fg = btnFg[kind];
+  const flat = kind === 'ghost';
   return (
-    <Animated.View style={[{ alignSelf: full ? 'stretch' : 'flex-start' }, a, style]}>
+    <View style={[{ alignSelf: full ? 'stretch' : 'flex-start', paddingBottom: flat ? 0 : 4, opacity: disabled ? 0.45 : 1 }, style]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled: !!disabled, busy: !!busy }}
         disabled={disabled || busy}
-        onPressIn={() => {
-          if (!calm) scale.value = withTiming(0.96, { duration: 80 });
-        }}
-        onPressOut={() => {
-          scale.value = withSpring(1, { damping: 14, stiffness: 320 });
-        }}
         onPress={() => {
           haptic('light');
           sound('tap');
           onPress?.();
         }}
-        style={({ focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
+        style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
           {
-            minHeight: small ? 40 : 52,
-            paddingHorizontal: small ? space.md + 2 : space.xl,
-            borderRadius: radius.pill,
+            minHeight: small ? 44 : 54,
+            paddingHorizontal: small ? 16 : 24,
+            borderRadius: small ? 14 : 17,
             backgroundColor: btnBg[kind],
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
             gap: space.sm,
-            opacity: disabled ? 0.4 : hovered ? 0.9 : 1,
-            borderWidth: kind === 'ghost' ? 1 : 0,
-            borderColor: C.lineStrong,
-          },
-          focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 3 } as ViewStyle),
+            borderWidth: kind === 'secondary' ? 1.5 : 0,
+            borderColor: C.panelBorder,
+          } as ViewStyle,
+          flat
+            ? undefined
+            : {
+                boxShadow: pressed
+                  ? `0 1px 0 ${btnLip[kind]}`
+                  : `0 4px 0 ${btnLip[kind]}, inset 0 1.5px 0 rgba(255,255,255,${kind === 'secondary' ? 0.5 : 0.28})`,
+                transform: [{ translateY: pressed ? 3 : 0 }],
+              },
+          focused && focusRing,
         ]}>
-        {icon && <Icon name={icon} size={small ? 18 : 20} color={fg} />}
-        <Text style={{ fontFamily: font.bodyBold, fontSize: small ? size.sm : size.md, color: fg }}>{busy ? 'Working…' : label}</Text>
-        {iconRight && <Icon name={iconRight} size={small ? 18 : 20} color={fg} />}
+        {icon && <Icon name={icon} size={small ? 18 : 21} color={fg} strokeWidth={2.1} />}
+        <Text style={{ fontFamily: font.heavy, fontSize: small ? 14.5 : 16.5, color: fg }}>{busy ? 'Working…' : label}</Text>
+        {iconRight && <Icon name={iconRight} size={small ? 18 : 21} color={fg} strokeWidth={2.1} />}
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -139,7 +146,7 @@ export function IconButton({
   onPress,
   size: s = 44,
   tint = C.text,
-  bg = C.surface3,
+  bg = C.surface1,
   style,
 }: {
   icon: IconName;
@@ -165,14 +172,17 @@ export function IconButton({
           height: s,
           borderRadius: s / 2,
           backgroundColor: bg,
+          borderWidth: 1.5,
+          borderColor: C.panelBorder,
           alignItems: 'center',
           justifyContent: 'center',
-          transform: [{ scale: pressed ? 0.94 : 1 }],
+          boxShadow: pressed ? `0 1px 0 ${C.panelShadow}` : `0 3px 0 ${C.panelShadow}`,
+          transform: [{ translateY: pressed ? 2 : 0 }],
         },
-        focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle),
+        focused && focusRing,
         style,
       ]}>
-      <Icon name={icon} size={Math.round(s * 0.48)} color={tint} />
+      <Icon name={icon} size={Math.round(s * 0.48)} color={tint} strokeWidth={2.1} />
     </Pressable>
   );
 }
@@ -191,11 +201,10 @@ export function Touchable({
         haptic('light');
         rest.onPress?.(e);
       }}
-      style={({ pressed, focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
+      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
         style,
-        hovered && { backgroundColor: C.surface3 },
-        pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
-        focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 } as ViewStyle),
+        pressed && { transform: [{ translateY: 2 }], opacity: 0.94 },
+        focused && focusRing,
       ]}>
       {children}
     </Pressable>
@@ -204,6 +213,7 @@ export function Touchable({
 
 /* ---------- Surfaces ---------- */
 
+/** Parchment card: cream fill, 1.5px border, 4px drop. */
 export function Panel({
   children,
   style,
@@ -219,10 +229,12 @@ export function Panel({
       style={[
         {
           backgroundColor: bg,
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: C.line,
+          borderRadius: radius.card,
+          borderWidth: 1.5,
+          borderColor: C.panelBorder,
           padding: space.lg,
+          boxShadow: `0 4px 0 ${C.panelShadow}`,
+          marginBottom: 4,
         },
         style,
       ]}>
@@ -251,16 +263,39 @@ export function Pill({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 5,
-          paddingHorizontal: 10,
-          height: 26,
+          paddingHorizontal: 11,
+          height: 28,
           borderRadius: radius.pill,
           backgroundColor: bg,
           alignSelf: 'flex-start',
         },
         style,
       ]}>
-      {icon && <Icon name={icon} size={14} color={tint} strokeWidth={2} />}
-      <Text style={{ fontFamily: font.bodySemi, fontSize: size.xs, color: tint }}>{label}</Text>
+      {icon && <Icon name={icon} size={14} color={tint} strokeWidth={2.2} />}
+      <Text style={{ fontFamily: font.bodyBold, fontSize: size.xs, color: tint }}>{label}</Text>
+    </View>
+  );
+}
+
+/** HUD chip: icon + pixel-font number on a cream pill (streak, hearts, acorns). */
+export function Chip({ icon, value, tint, bg = C.surface1, label }: { icon: IconName; value: string | number; tint: string; bg?: string; label?: string }) {
+  return (
+    <View
+      accessibilityLabel={label ? `${label}: ${value}` : undefined}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        height: 36,
+        paddingHorizontal: 12,
+        borderRadius: radius.pill,
+        backgroundColor: bg,
+        borderWidth: 1.5,
+        borderColor: C.panelBorder,
+        boxShadow: `0 2px 0 ${C.panelShadow}`,
+      }}>
+      <Icon name={icon} size={17} color={tint} fill={tint} strokeWidth={2} />
+      <Text style={{ fontFamily: font.pixel, fontSize: 16, color: C.text }}>{value}</Text>
     </View>
   );
 }
@@ -269,9 +304,9 @@ export function Pill({
 
 export function Bar({
   value,
-  tint = C.teal,
-  height = 8,
-  track = C.surface3,
+  tint = C.moss,
+  height = 10,
+  track = C.track,
   delay = 0,
   style,
 }: {
@@ -289,7 +324,7 @@ export function Bar({
     if (calm) w.value = target;
     else {
       const t = setTimeout(() => {
-        w.value = withTiming(target, { duration: 700, easing: Easing.out(Easing.cubic) });
+        w.value = withTiming(target, { duration: 850, easing: Easing.out(Easing.cubic) });
       }, delay);
       return () => clearTimeout(t);
     }
@@ -300,7 +335,24 @@ export function Bar({
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
       style={[{ height, borderRadius: height, backgroundColor: track, overflow: 'hidden' }, style]}>
-      <Animated.View style={[{ height: '100%', borderRadius: height, backgroundColor: tint }, a]} />
+      <Animated.View
+        style={[{ height: '100%', borderRadius: height, backgroundColor: tint, boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12), inset 0 2px 0 rgba(255,255,255,0.3)' }, a]}
+      />
+    </View>
+  );
+}
+
+/** Honey XP bar: chunky inset track with a gradient fill. */
+export function XpBar({ pct, height = 14 }: { pct: number; height?: number }) {
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(pct * 100) }}
+      style={{ height, borderRadius: height * 0.65, backgroundColor: C.track, padding: 2, boxShadow: 'inset 0 2px 0 rgba(0,0,0,0.07)' }}>
+      <LinearGradient
+        colors={[C.honeyLight, C.honey]}
+        style={{ height: '100%', width: `${Math.max(2, Math.min(1, pct) * 100)}%`, borderRadius: height * 0.5, boxShadow: 'inset 0 -2px 0 #C98A22' }}
+      />
     </View>
   );
 }
@@ -311,8 +363,8 @@ export function Ring({
   value,
   size: s = 64,
   stroke = 6,
-  tint = C.teal,
-  track = C.surface3,
+  tint = C.moss,
+  track = C.track,
   children,
 }: {
   value: number;
@@ -363,18 +415,18 @@ export function Field({
 }: TextInputProps & { label?: string; help?: string; inputStyle?: StyleProp<TextStyle> }) {
   return (
     <View style={[{ gap: 6 }, style]}>
-      {label && <T v="caption" style={{ color: C.textMuted }}>{label}</T>}
+      {label && <T v="caption" style={{ fontSize: 13 }}>{label}</T>}
       <TextInput
         placeholderTextColor={C.textFaint}
-        selectionColor={C.teal}
+        selectionColor={C.moss}
         {...rest}
         style={[
           {
-            minHeight: rest.multiline ? 120 : 50,
-            backgroundColor: C.bgDeep,
+            minHeight: rest.multiline ? 120 : 52,
+            backgroundColor: C.surface1,
             borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: C.lineStrong,
+            borderWidth: 1.5,
+            borderColor: C.panelBorder,
             paddingHorizontal: space.lg,
             paddingVertical: rest.multiline ? space.md : 0,
             color: C.text,
@@ -405,7 +457,7 @@ export function Segmented<V extends string>({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
-      style={{ flexDirection: 'row', backgroundColor: C.bgDeep, borderRadius: radius.pill, padding: 4, gap: 4, borderWidth: 1, borderColor: C.line, flexWrap: 'wrap' }}>
+      style={{ flexDirection: 'row', backgroundColor: C.bgDeep, borderRadius: radius.pill, padding: 4, gap: 4, flexWrap: 'wrap' }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -420,19 +472,20 @@ export function Segmented<V extends string>({
             style={({ focused }: { pressed: boolean; focused?: boolean }) => [
               {
                 flexGrow: 1,
-                minHeight: 40,
+                minHeight: 42,
                 paddingHorizontal: space.lg,
                 borderRadius: radius.pill,
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexDirection: 'row',
                 gap: 6,
-                backgroundColor: on ? C.surface4 : 'transparent',
+                backgroundColor: on ? C.surface1 : 'transparent',
+                boxShadow: on ? `0 2px 0 ${C.panelShadow}` : undefined,
               },
-              focused && ({ outlineColor: C.teal, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle),
+              focused && focusRing,
             ]}>
-            {o.icon && <Icon name={o.icon} size={16} color={on ? C.text : C.textMuted} />}
-            <Text style={{ fontFamily: font.bodySemi, fontSize: size.sm, color: on ? C.text : C.textMuted }}>{o.label}</Text>
+            {o.icon && <Icon name={o.icon} size={16} color={on ? C.mossInk : C.textMuted} />}
+            <Text style={{ fontFamily: font.bodyBold, fontSize: size.sm, color: on ? C.mossInk : C.textMuted }}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -441,7 +494,7 @@ export function Segmented<V extends string>({
 }
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
-  return <View style={[{ height: 1, backgroundColor: C.line }, style]} />;
+  return <View style={[{ height: 1.5, backgroundColor: C.divider }, style]} />;
 }
 
 export function SectionHead({ title, action }: { title: string; action?: ReactNode }) {

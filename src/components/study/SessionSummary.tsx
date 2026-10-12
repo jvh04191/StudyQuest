@@ -42,7 +42,7 @@ export function SessionSummary({ record }: { record: SessionRecord }) {
   return (
     <View style={{ gap: space.xl }}>
       <View style={{ gap: 6 }}>
-        <T v="caption" style={{ color: C.teal }}>{record.kind === 'boss' ? 'Boss battle' : 'Quest'} results</T>
+        <T v="eyebrow" style={{ color: C.textFaint }}>{record.kind === 'boss' ? 'Boss battle' : 'Quest'} results</T>
         <T v="title" accessibilityRole="header">{record.title}</T>
         {record.kind === 'boss' && (
           <T v="body" style={{ color: record.bossWon ? C.gold : C.textMuted }}>
@@ -53,8 +53,8 @@ export function SessionSummary({ record }: { record: SessionRecord }) {
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
         {tiles.map((t) => (
-          <View key={t.label} style={{ flexGrow: 1, flexBasis: 140, padding: space.lg, borderRadius: radius.lg, backgroundColor: C.surface1, borderWidth: 1, borderColor: C.line, gap: 4 }}>
-            <T v="title" style={{ fontVariant: ['tabular-nums'], color: t.label === 'XP earned' ? C.gold : C.text }}>{t.value}</T>
+          <View key={t.label} style={{ flexGrow: 1, flexBasis: 140, padding: space.lg, borderRadius: 20, backgroundColor: C.surface1, borderWidth: 1.5, borderColor: C.panelBorder, boxShadow: `0 4px 0 ${C.panelShadow}`, marginBottom: 4, gap: 4 }}>
+            <T v="number" style={{ fontFamily: font.pixelBold, fontSize: 30, lineHeight: 34, color: t.label === 'XP earned' ? C.honeyShadow : C.text }}>{t.value}</T>
             <T v="caption">{t.label}</T>
           </View>
         ))}
@@ -66,7 +66,7 @@ export function SessionSummary({ record }: { record: SessionRecord }) {
           <>
             <T v="small">You missed these. They’re scheduled to come back soon, and you can practice them now.</T>
             {missed.map((c) => (
-              <View key={c.id} style={{ flexDirection: 'row', gap: space.md, paddingVertical: 6, borderTopWidth: 1, borderColor: C.line }}>
+              <View key={c.id} style={{ flexDirection: 'row', gap: space.md, paddingVertical: 6, borderTopWidth: 1.5, borderColor: C.divider }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.coral, marginTop: 8 }} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <T v="bodyStrong">{c.front}</T>
