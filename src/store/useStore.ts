@@ -66,7 +66,7 @@ interface Actions {
   skipRest: () => boolean;
   /** Open a quest's treasure chest and apply the loot. */
   openChest: (recordId: ID) => void;
-  startSession: (kind: SessionKind, opts?: { deckIds?: ID[]; subjectId?: ID; testMode?: TestMode; count?: number }) => ID | null;
+  startSession: (kind: SessionKind, opts?: { deckIds?: ID[]; subjectId?: ID; testMode?: TestMode; count?: number; minutes?: number }) => ID | null;
   answer: (input: AnswerInput) => ItemResult | null;
   finishSession: () => SessionRecord | null;
   abandonSession: () => void;
@@ -356,6 +356,7 @@ export const useStore = create<StoreState>()(
           active: {
             id, kind, title, deckIds, subjectId: opts.subjectId, queue, index: 0, results: [],
             xpEarned: 0, xpStart: s.player.xp, startedAt: now, testMode: kind === 'test' ? opts.testMode ?? 'mixed' : undefined,
+            endsAt: kind === 'test' && opts.minutes ? now + opts.minutes * 60000 : undefined,
           },
         });
         return id;

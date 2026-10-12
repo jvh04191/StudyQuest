@@ -72,6 +72,10 @@ export function gradeAnswer(body: { question: string; answer: string; detail?: s
   return post<{ verdict: 'correct' | 'partial' | 'wrong'; feedback: string }>('/api/grade', body, 60000);
 }
 
+export function fetchPage(url: string) {
+  return post<{ title: string; text: string }>('/api/page', { url }, 30000);
+}
+
 export function askNova(body: unknown) {
   return post<{ reply: string }>('/api/nova', body);
 }

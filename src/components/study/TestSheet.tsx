@@ -34,6 +34,7 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
   const [mode, setMode] = useState<TestMode>('mixed');
   const [count, setCount] = useState<'10' | '20' | 'all'>('all');
   const [hard, setHard] = useState(true);
+  const [mins, setMins] = useState<'0' | '5' | '10' | '20'>('0');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const { rail } = useLayoutMode();
@@ -65,7 +66,7 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
       }
     }
     onClose();
-    startQuest('test', { deckIds: [deckId], testMode: mode, count: count === 'all' ? undefined : Number(count) });
+    startQuest('test', { deckIds: [deckId], testMode: mode, count: count === 'all' ? undefined : Number(count), minutes: Number(mins) || undefined });
   };
 
   return (
@@ -156,6 +157,21 @@ export function TestSheet({ deckId, onClose, intro }: { deckId: string; onClose:
             {total - withChoices} of {total} cards have no wrong answers to choose from, so those are asked as recall instead.
           </T>
         )}
+
+        <View style={{ gap: 6 }}>
+          <Text style={{ fontFamily: font.bodyBold, fontSize: 13, color: C.textMuted }}>Time limit</Text>
+          <Segmented<'0' | '5' | '10' | '20'>
+            label="Time limit"
+            value={mins}
+            onChange={setMins}
+            options={[
+              { value: '0', label: 'None' },
+              { value: '5', label: '5 min' },
+              { value: '10', label: '10 min' },
+              { value: '20', label: '20 min' },
+            ]}
+          />
+        </View>
 
         {usesChoices && (
           <Pressable

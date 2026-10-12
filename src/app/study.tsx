@@ -70,6 +70,24 @@ export default function Study() {
     if (active && !active.recordId && active.index >= active.queue.length) finishSession();
   }, [active, finishSession]);
 
+  // Timed exam: end the test when the clock runs out.
+  const [now, setNow] = useState(Date.now());
+  const endsAt = active && !active.recordId ? active.endsAt : undefined;
+  useEffect(() => {
+    if (!endsAt) return;
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [endsAt]);
+  const timeLeft = endsAt ? Math.max(0, endsAt - now) : null;
+  useEffect(() => {
+    if (timeLeft !== 0) return;
+    if (useStore.getState().active?.results.length) finishSession();
+    else {
+      abandonSession();
+      goBackOr('/');
+    }
+  }, [timeLeft, finishSession, abandonSession]);
+
   // Out of hearts: go and rest by the fire. The quest stays saved.
   useEffect(() => {
     if (active && !active.recordId && heartsMode !== 'off' && hearts <= 0 && restEndsAt) router.replace('/rest');
@@ -173,6 +191,12 @@ export default function Study() {
           <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bodyBold, fontSize: 12.5, color: muted }}>
             {boss ? 'Boss battle' : active.title} · {position}
           </Text>
+          {timeLeft != null && (
+            <View accessible accessibilityLabel={`${Math.ceil(timeLeft / 1000)} seconds left`} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 28, borderRadius: 999, backgroundColor: timeLeft < 60000 ? C.berrySoft : C.bgDeep }}>
+              <Icon name="clock" size={14} color={timeLeft < 60000 ? C.berryInk : C.textMuted} />
+              <Text style={{ fontFamily: font.pixelBold, fontSize: 14, color: timeLeft < 60000 ? C.berryInk : C.text }}>{Math.floor(timeLeft / 60000)}:{String(Math.floor((timeLeft % 60000) / 1000)).padStart(2, '0')}</Text>
+            </View>
+          )}
           <Animated.View
             accessible
             accessibilityLabel={`${active.xpEarned} XP earned this quest`}

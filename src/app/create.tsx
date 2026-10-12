@@ -10,7 +10,7 @@ import { CardEditor } from '@/components/study/CardEditor';
 import { Icon } from '@/components/ui/Icon';
 import { Button, Field, IconButton, Panel, Pill, Segmented, T } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
-import { generateStudySet, quickExtract } from '@/lib/ai';
+import { fetchPage, generateStudySet, quickExtract } from '@/lib/ai';
 import { Bar } from '@/components/ui/primitives';
 import { parseImport } from '@/lib/transfer';
 import { landName } from '@/lib/world';
@@ -18,7 +18,7 @@ import { useNova } from '@/store/novaStore';
 import { useStore, type DraftCard } from '@/store/useStore';
 import { color as C, font, radius, size, space } from '@/theme/tokens';
 
-type Source = 'notes' | 'pdf' | 'manual' | 'import';
+type Source = 'notes' | 'pdf' | 'link' | 'manual' | 'import';
 interface Draft extends DraftCard {
   keep: boolean;
 }
@@ -63,6 +63,22 @@ export default function Create() {
   const [editing, setEditing] = useState<number | null>(null);
   const [addingManual, setAddingManual] = useState(false);
   const [pasted, setPasted] = useState('');
+  const [url, setUrl] = useState('');
+
+  const loadLink = async () => {
+    setError(null);
+    setBusy('Reading that page…');
+    try {
+      const p = await fetchPage(url.trim());
+      setNotes(p.text);
+      if (!title.trim() && p.title) setTitle(p.title.slice(0, 60));
+      setSource('notes');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read that page.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const readImport = () => {
     setError(null);
@@ -197,12 +213,13 @@ export default function Create() {
           options={[
             { value: 'notes', label: 'Notes', icon: 'doc' },
             { value: 'pdf', label: 'PDF', icon: 'upload' },
+            { value: 'link', label: 'Link', icon: 'doc' },
             { value: 'manual', label: 'By hand', icon: 'pen' },
             { value: 'import', label: 'Import', icon: 'upload' },
           ]}
         />
 
-        {ai === 'off' && source !== 'manual' && source !== 'import' && (
+        {ai === 'off' && source !== 'manual' && source !== 'import' && source !== 'link' && (
           <View style={{ flexDirection: 'row', gap: 10, padding: space.md, borderRadius: radius.md, backgroundColor: C.goldSoft }}>
             <Icon name="info" size={18} color={C.gold} />
             <T v="small" style={{ flex: 1, color: C.text }}>
@@ -210,6 +227,14 @@ export default function Create() {
                 ? 'Reading PDFs needs the AI connection, which is off. Add a Gemini or Claude API key to the .env file on the computer running Expo, or paste the text as notes instead.'
                 : 'AI generation is off. You can still use Quick extract, which pulls cards from “term: definition” lines using simple rules (not AI).'}
             </T>
+          </View>
+        )}
+
+        {source === 'link' && (
+          <View style={{ gap: space.md }}>
+            <T v="small">Paste the address of an article, Wikipedia page or study guide. Nova reads the text, then you can brew cards from it. Pages that need a login can’t be read.</T>
+            <Field label="Web address" value={url} onChangeText={setUrl} placeholder="https://en.wikipedia.org/wiki/Mitosis" autoCapitalize="none" autoCorrect={false} />
+            <Button icon="upload" label="Read this page" disabled={url.trim().length < 4 || !!busy} onPress={loadLink} />
           </View>
         )}
 
@@ -221,7 +246,7 @@ export default function Create() {
           </View>
         )}
 
-        {source !== 'manual' && source !== 'import' && ai === 'on' && (
+        {source !== 'manual' && source !== 'import' && source !== 'link' && ai === 'on' && (
           <View style={{ gap: space.sm }}>
             <T v="bodyStrong">How many cards</T>
             <Segmented

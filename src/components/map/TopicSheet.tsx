@@ -25,7 +25,7 @@ export function isResting() {
 
 export function startQuest(
   kind: 'quest' | 'boss' | 'review' | 'missed' | 'test',
-  opts?: { deckIds?: string[]; subjectId?: string; testMode?: TestMode; count?: number },
+  opts?: { deckIds?: string[]; subjectId?: string; testMode?: TestMode; count?: number; minutes?: number },
   navigate = true,
 ) {
   if (isResting()) {

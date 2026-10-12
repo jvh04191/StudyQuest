@@ -120,6 +120,8 @@ export interface ActiveSession {
   startedAt: number;
   recordId?: ID;
   testMode?: TestMode;
+  /** Timed exam: when time runs out the test ends with what has been answered. */
+  endsAt?: number;
 }
 
 export interface XpLine {
