@@ -16,7 +16,7 @@ World map of "lands" (subjects), subjects and decks, notes/PDF to flashcards, fl
 
 ## AI (server-side only)
 - Keys live in `.env` (gitignored; copy `.env.example`). Never commit keys or expose them to the client bundle.
-- `src/server/ai.ts` is the provider-neutral helper: Claude Messages API (`AI_PROVIDER=anthropic`, tool_use) or Gemini (`AI_PROVIDER=gemini`). Includes retries on 429/5xx/529, Gemini fallback models, friendly errors.
+- `src/server/ai.ts` is the provider-neutral helper: Claude Messages API (`AI_PROVIDER=anthropic`, tool_use), Gemini (`AI_PROVIDER=gemini`) or Groq (`AI_PROVIDER=groq`, OpenAI-compatible, free tier, no PDF input). Includes retries on 429/5xx/529, Gemini fallback models, friendly errors.
 - API routes (`src/app/api/*+api.ts`: status, nova, generate) run on the Expo dev server (`web.output: "server"`). The iPad reaches them via `Constants.expoConfig.hostUri` (`src/lib/ai.ts`).
 - `generate` accepts `count: number | 'auto'` (auto = up to 60 cards, one per question/fact). PDF generation timeout is 240s.
 - `ANTHROPIC_BASE_URL` / `GEMINI_BASE_URL` overrides exist for testing against mock servers. Real-key paths have only been tested against stand-ins so far.

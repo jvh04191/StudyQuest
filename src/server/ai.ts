@@ -4,30 +4,36 @@
 // Provider choice:
 //   AI_PROVIDER=gemini     → Google Gemini (GEMINI_API_KEY, optional GEMINI_MODEL)
 //   AI_PROVIDER=anthropic  → Claude (ANTHROPIC_API_KEY, optional ANTHROPIC_MODEL)
+//   AI_PROVIDER=groq       → Groq, free tier (GROQ_API_KEY, optional GROQ_MODEL). No PDF reading.
 //   unset                  → whichever key is present (Claude first if both are)
 
-export type Provider = 'anthropic' | 'gemini';
+export type Provider = 'anthropic' | 'gemini' | 'groq';
 
 export function provider(): Provider {
   const p = (process.env.AI_PROVIDER || '').toLowerCase();
   if (p === 'gemini' || p === 'google') return 'gemini';
   if (p === 'anthropic' || p === 'claude') return 'anthropic';
+  if (p === 'groq') return 'groq';
   if (!process.env.ANTHROPIC_API_KEY && process.env.GEMINI_API_KEY) return 'gemini';
+  if (!process.env.ANTHROPIC_API_KEY && process.env.GROQ_API_KEY) return 'groq';
   return 'anthropic';
 }
 
+const KEY_NAME: Record<Provider, string> = { anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY', groq: 'GROQ_API_KEY' };
+
 export function aiConfigured() {
-  return provider() === 'gemini' ? !!process.env.GEMINI_API_KEY : !!process.env.ANTHROPIC_API_KEY;
+  return !!process.env[KEY_NAME[provider()]];
 }
 
 export function modelName() {
-  return provider() === 'gemini'
-    ? process.env.GEMINI_MODEL || 'gemini-3.8-flash'
-    : process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+  const p = provider();
+  if (p === 'gemini') return process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  if (p === 'groq') return process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  return process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 }
 
 function requireKey() {
-  const name = provider() === 'gemini' ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY';
+  const name = KEY_NAME[provider()];
   const key = process.env[name];
   if (!key) throw new Error(`AI is not configured. Add ${name} to the .env file and restart Expo.`);
   return key;
@@ -40,10 +46,15 @@ export interface Turn {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function send(provider: 'Gemini' | 'Claude', url: string, init: RequestInit) {
+type Brand = 'Gemini' | 'Claude' | 'Groq';
+
+async function send(provider: Brand, url: string, init: RequestInit) {
   try {
     return await fetch(url, init);
-  } catch {
+  } catch (e) {
+    // Shown in the terminal running Expo so the real network error isn't hidden.
+    const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+    console.warn(`[ai] request to ${provider} failed:`, (e as Error).message, cause?.code ?? cause?.message ?? '');
     throw new AiError(`Couldn't reach ${provider}. Check that the computer running Expo is online, then try again.`, 0);
   }
 }
@@ -60,13 +71,13 @@ class AiError extends Error {
   }
 }
 
-function friendly(provider: 'Gemini' | 'Claude', status: number, raw?: string) {
+function friendly(provider: Brand, status: number, raw?: string) {
   const r = (raw ?? '').toLowerCase();
   if (status === 429 || r.includes('quota') || r.includes('rate limit') || r.includes('resource_exhausted')) {
-    return `${provider} says your API key hit its usage limit. Free keys only allow a certain number of requests per minute and per day. Wait a minute and try again, or check your usage in ${provider === 'Gemini' ? 'Google AI Studio' : 'the Anthropic Console'}.`;
+    return `${provider} says your API key hit its usage limit. Free keys only allow a certain number of requests per minute and per day. Wait a minute and try again, or check your usage in ${provider === 'Gemini' ? 'Google AI Studio' : provider === 'Groq' ? 'the Groq console' : 'the Anthropic Console'}.`;
   }
   if (status === 503 || status === 529 || r.includes('overloaded') || r.includes('high demand') || r.includes('unavailable')) {
-    return `${provider}'s servers are busy right now (this comes from ${provider === 'Gemini' ? 'Google' : 'Anthropic'}, not StudyQuest). StudyQuest already retried a few times. Try again in a minute.`;
+    return `${provider}'s servers are busy right now (this comes from ${provider === 'Gemini' ? 'Google' : provider === 'Groq' ? 'Groq' : 'Anthropic'}, not StudyQuest). StudyQuest already retried a few times. Try again in a minute.`;
   }
   if (status === 400 && r.includes('api key')) return `${provider} didn't accept the API key. Check the key in your .env file.`;
   if (status === 401 || status === 403) return `${provider} didn't accept the API key. Check the key in your .env file.`;
@@ -128,6 +139,11 @@ async function gemini(body: Record<string, unknown>) {
         return (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('').trim();
       }
       last = new AiError(friendly('Gemini', res.status, data.error?.message), res.status);
+      // A per-day quota won't clear by retrying: stop now (and don't burn more of it) instead of waiting out the timeout.
+      if (res.status === 429 && /per ?day|retry in d+h/i.test(data.error?.message ?? '')) {
+        if (mi === 0 && geminiModels().length > 1) break;
+        throw last;
+      }
       // A backup model that doesn't exist for this key: move on quietly.
       if (res.status === 404 && mi > 0) break;
       if (!TRANSIENT.has(res.status)) {
@@ -136,6 +152,32 @@ async function gemini(body: Record<string, unknown>) {
       }
       // Rate limits apply to the whole key, so switching models rarely helps; keep retrying the same one.
     }
+  }
+  throw last!;
+}
+
+/* ---------------- Groq (OpenAI-compatible) ---------------- */
+
+async function groq(body: Record<string, unknown>) {
+  const base = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
+  let last: AiError | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await sleep(attempt === 1 ? 1500 : 4000);
+    const res = await send('Groq', `${base}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${requireKey()}` },
+      body: JSON.stringify({ model: modelName(), ...body }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      choices?: { message?: { content?: string } }[];
+      error?: { message?: string };
+    };
+    if (res.ok) return (data.choices?.[0]?.message?.content ?? '').trim();
+    last = new AiError(friendly('Groq', res.status, data.error?.message), res.status);
+    // A long Retry-After means a per-day limit; waiting a few seconds won't help.
+    const wait = Number(res.headers.get('retry-after') ?? 0);
+    if (res.status === 429 && wait > 20) throw last;
+    if (!TRANSIENT.has(res.status)) break;
   }
   throw last!;
 }
@@ -149,6 +191,12 @@ export async function chat(system: string, turns: Turn[], maxTokens = 700): Prom
       systemInstruction: { parts: [{ text: system }] },
       contents: turns.map((t) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.text }] })),
       generationConfig: { maxOutputTokens: maxTokens },
+    });
+  }
+  if (provider() === 'groq') {
+    return groq({
+      max_tokens: maxTokens,
+      messages: [{ role: 'system', content: system }, ...turns.map((t) => ({ role: t.role, content: t.text }))],
     });
   }
   const content = await claude({
@@ -216,6 +264,28 @@ export async function makeStudySet(input: { text?: string; pdfBase64?: string; i
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts }],
       generationConfig: { maxOutputTokens: 16000, responseMimeType: 'application/json' },
+    });
+    return parseJson(out);
+  }
+  if (provider() === 'groq') {
+    if (input.pdfBase64) throw new Error("Groq can't read PDFs directly. Paste the text from your PDF as notes instead, or switch AI_PROVIDER to gemini or anthropic in .env.");
+    const out = await groq({
+      max_tokens: 8000,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: `<material>
+${input.text ?? ''}
+</material>
+
+${input.instructions}
+
+Reply with only a JSON object matching this JSON Schema, with no other text:
+${JSON.stringify(SET_SCHEMA)}`,
+        },
+      ],
     });
     return parseJson(out);
   }
