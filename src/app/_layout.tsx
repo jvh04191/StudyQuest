@@ -13,7 +13,9 @@ import { useEffect, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AccessGate } from '@/components/shell/AccessGate';
 import { AppShell } from '@/components/shell/AppShell';
+import { useAccess } from '@/lib/access';
 import { useNova } from '@/store/novaStore';
 import { useStore } from '@/store/useStore';
 import { color as C } from '@/theme/tokens';
@@ -51,7 +53,12 @@ export default function RootLayout() {
     HankenGrotesk_700Bold,
   });
   const hydrated = useHydrated();
-  const ready = fontsLoaded && hydrated;
+  const phase = useAccess((s) => s.phase);
+  const ready = fontsLoaded && hydrated && (phase === 'open' || phase === 'ready');
+
+  useEffect(() => {
+    if (hydrated) useAccess.getState().init();
+  }, [hydrated]);
 
   useEffect(() => {
     if (!ready) return;
@@ -64,6 +71,10 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [ready]);
 
+  if (fontsLoaded && hydrated && phase !== 'open' && phase !== 'ready') {
+    SplashScreen.hideAsync().catch(() => {});
+    return <AccessGate />;
+  }
   if (!ready) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
 
   return (

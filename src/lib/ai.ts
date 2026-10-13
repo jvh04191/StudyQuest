@@ -1,14 +1,7 @@
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
+import { apiBase, authHeaders } from '@/lib/access';
 import type { DraftCard } from '@/store/useStore';
 
-/** The Expo dev server hosts the API routes; on device we call it by its host. */
-function base() {
-  if (Platform.OS === 'web') return '';
-  const host = Constants.expoConfig?.hostUri;
-  return host ? `http://${host}` : '';
-}
+const base = apiBase;
 
 async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<T> {
   const ctrl = new AbortController();
@@ -16,7 +9,7 @@ async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<
   try {
     const res = await fetch(`${base()}${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
@@ -25,7 +18,7 @@ async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<
     return data as T;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') throw new Error('The AI took too long to respond. Try again.');
-    if (e instanceof TypeError) throw new Error('Could not reach the StudyQuest server. Make sure Expo is still running on your computer.');
+    if (e instanceof TypeError) throw new Error('Could not reach the StudyQuest server. Check your connection (or that Expo is still running on your computer).');
     throw e;
   } finally {
     clearTimeout(t);
