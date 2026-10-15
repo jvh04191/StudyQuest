@@ -339,13 +339,17 @@ ${JSON.stringify(SET_SCHEMA)}`,
   const content: unknown[] = [];
   if (input.pdfBase64) content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.pdfBase64 } });
   if (input.text) content.push({ type: 'text', text: `<material>\n${input.text}\n</material>` });
-  content.push({ type: 'text', text: `${input.instructions}\n- Call save_study_set once with the result.` });
+  content.push({ type: 'text', text: `${input.instructions}\n- You must call the save_study_set tool exactly once with the complete result, and write nothing else.` });
   const out = await claude({
     system,
     max_tokens: 12000,
     messages: [{ role: 'user', content }],
     tools: [{ name: 'save_study_set', description: 'Save a study set built from the learner material.', input_schema: SET_SCHEMA }],
-    tool_choice: { type: 'tool', name: 'save_study_set' },
+    // Newer Claude models don't accept a forced tool_choice, so ask for the tool in the prompt instead.
   });
-  return ((out.find((c) => c.type === 'tool_use')?.input as RawStudySet) ?? {}) as RawStudySet;
+  const tool = out.find((c) => c.type === 'tool_use')?.input as RawStudySet | undefined;
+  if (tool) return tool;
+  const text = out.filter((c) => c.type === 'text').map((c) => c.text ?? '').join('\n');
+  if (text.includes('{')) return parseJson(text);
+  throw new Error('Claude did not return any cards. Try again.');
 }
