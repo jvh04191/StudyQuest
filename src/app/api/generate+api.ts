@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     const howMany =
       share +
       (auto
-        ? `Create one flashcard for every distinct question, term or key fact in it (up to ${parts > 1 ? 20 : 60}). If the material is a list of questions, such as a quiz, worksheet or study guide, make exactly one card per question and keep every question.`
+        ? `Create one flashcard for every distinct question, term or key fact in it (up to 60). If the material is a list of questions, such as a quiz, worksheet or study guide, make exactly one card per question and keep every question.`
         : `Create ${perPart} flashcards (fewer only if the material truly has less to cover). If the material is a list of questions, make one card per question.`);
     const instructions = `${howMany}\nMaterial: this ${body.mode === 'pdf' ? 'PDF' : body.mode === 'explanation' ? 'explanation' : 'set of notes'}${body.subject ? `, subject "${body.subject}"` : ''}${body.deckTitle ? `, deck "${body.deckTitle}"` : ''}.
 Rules:

@@ -299,6 +299,45 @@ Reply with only JSON: {"cards":[{"id":"...","distractors":["...","...","..."]}]}
 
 /** Build a study set from text or a PDF (base64). */
 export async function makeStudySet(input: { text?: string; pdfBase64?: string; instructions: string }): Promise<RawStudySet> {
+  return tidySet(await makeStudySetRaw(input));
+}
+
+/** Models sometimes send a list as JSON text ("[...]") instead of a real list. Accept both. */
+function asList(v: unknown): unknown[] | undefined {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    try {
+      const j = JSON.parse(v);
+      if (Array.isArray(j)) return j;
+      if (j && typeof j === 'object' && Array.isArray((j as { cards?: unknown }).cards)) return (j as { cards: unknown[] }).cards;
+    } catch {}
+  }
+  return undefined;
+}
+
+function tidySet(raw: RawStudySet): RawStudySet {
+  const out: Record<string, unknown>[] = [];
+  for (const c of asList(raw?.cards) ?? []) {
+    let o: unknown = c;
+    if (typeof o === 'string') {
+      try {
+        o = JSON.parse(o);
+      } catch {
+        continue;
+      }
+    }
+    if (!o || typeof o !== 'object' || Array.isArray(o)) continue;
+    const card = o as Record<string, unknown>;
+    out.push({ ...card, distractors: asList(card.distractors) ?? [], aliases: asList(card.aliases) ?? [] });
+  }
+  return {
+    title: typeof raw?.title === 'string' ? raw.title : undefined,
+    summary: typeof raw?.summary === 'string' ? raw.summary : undefined,
+    cards: out,
+  };
+}
+
+async function makeStudySetRaw(input: { text?: string; pdfBase64?: string; instructions: string }): Promise<RawStudySet> {
   const system = 'You turn study material into accurate, well-made flashcards and summaries.';
   if (provider() === 'gemini') {
     const parts: unknown[] = [];
