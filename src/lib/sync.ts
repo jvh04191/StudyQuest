@@ -108,6 +108,15 @@ export async function pull(): Promise<boolean> {
   }
 }
 
+/** The server's previous save (kept at most once an hour), as a backup the learner can restore. */
+export async function fetchEarlierSave() {
+  const res = await fetch(`${base()}/api/sync?version=prev`, { headers: header() });
+  const j = (await res.json().catch(() => ({}))) as { data?: Record<string, unknown> | null; updatedAt?: number; error?: string };
+  if (!res.ok) throw new Error(j.error ?? 'Could not reach the server.');
+  if (!j.data) return null;
+  return { app: 'studyquest' as const, version: 3, exportedAt: j.updatedAt ?? 0, data: j.data };
+}
+
 /** Call once after the store has loaded from this device. */
 export async function startSync() {
   if (started) return;

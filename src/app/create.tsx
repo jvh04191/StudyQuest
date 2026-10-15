@@ -240,7 +240,7 @@ export default function Create() {
 
         {source === 'import' && (
           <View style={{ gap: space.md }}>
-            <T v="small">Paste an export from Quizlet (Export), Anki (Notes in Plain Text) or a spreadsheet CSV. One card per line: question, then answer, separated by a tab or comma. No AI needed.</T>
+            <T v="small">Paste cards from Quizlet (Export), Anki (Notes in Plain Text), a spreadsheet CSV, or copied out of Gizmo. Gizmo has no export button, so open the deck there, select the cards and copy them. Use one card per line (question, then answer, separated by a tab or comma), or one card per block with the question on the first line and the answer under it. No AI needed.</T>
             <Field value={pasted} onChangeText={setPasted} multiline inputStyle={{ minHeight: 200 }} accessibilityLabel="Cards to import" placeholder={'Osmosis\tMovement of water across a membrane\nMitosis\tCell division that makes identical cells'} />
             <Button icon="check" label="Read cards" disabled={pasted.trim().length < 3} onPress={readImport} />
           </View>

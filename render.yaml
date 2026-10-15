@@ -11,8 +11,13 @@ services:
     healthCheckPath: /api/status
     envVars:
       - key: AI_PROVIDER
-        value: gemini
-      - key: GEMINI_API_KEY
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # A free Upstash Redis database keeps saved progress safe across restarts (see CLAUDE.md).
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
       - key: ACCESS_CODE
         sync: false

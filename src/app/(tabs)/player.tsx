@@ -8,9 +8,9 @@ import { Icon } from '@/components/ui/Icon';
 import { Button, Field, Panel, Segmented, T, XpBar } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
 import { HEADWEAR, isLocked, OUTFIT_COLOR, type Look, type Opt } from '@/lib/avatar';
-import { fetchLocked } from '@/lib/ai';
+import { fetchServerInfo } from '@/lib/ai';
 import { applyBackup, describeBackup, exportBackup, pickBackup, type Backup } from '@/lib/backup';
-import { pull, useSync } from '@/lib/sync';
+import { fetchEarlierSave, pull, useSync } from '@/lib/sync';
 import { useDeckStats, useLevel } from '@/lib/hooks';
 import { ACHIEVEMENTS, NOVA_STYLES } from '@/lib/progression';
 import { levelTitle } from '@/lib/world';
@@ -79,9 +79,10 @@ export default function PlayerScreen() {
   const player = useStore((s) => s.player);
   const prefs = useStore((s) => s.prefs);
   const sync = useSync();
-  const [locked, setLocked] = useState(false);
+  const [server, setServer] = useState<{ locked: boolean; saves: 'database' | 'file' | null }>({ locked: false, saves: null });
+  const locked = server.locked;
   useEffect(() => {
-    fetchLocked().then(setLocked);
+    fetchServerInfo().then(setServer);
   }, []);
   const setPlayer = useStore((s) => s.setPlayer);
   const setPrefs = useStore((s) => s.setPrefs);
@@ -254,7 +255,7 @@ export default function PlayerScreen() {
             {prefs.accessCode ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
                 <T v="small" style={{ flex: 1, color: sync.status === 'error' ? C.berryInk : C.textMuted }}>
-                  {sync.status === 'syncing' ? 'Saving to the server…' : sync.status === 'error' ? `Not saved to the server: ${sync.message}` : sync.status === 'saved' && sync.at ? `Progress saved to the server · ${new Date(sync.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Progress is saved to the server with this code, so it follows you to other devices.'}
+                  {sync.status === 'syncing' ? 'Saving to the server…' : sync.status === 'error' ? `Not saved to the server: ${sync.message}` : sync.status === 'saved' && sync.at ? `Progress saved to the server · ${new Date(sync.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${server.saves === 'file' ? ' (on its disk: lost if the host restarts, so keep backups)' : ''}` : 'Progress is saved to the server with this code, so it follows you to other devices.'}
                 </T>
                 <Button small kind="secondary" icon="refresh" label="Sync now" onPress={() => { pull(); }} />
               </View>
@@ -320,6 +321,7 @@ export default function PlayerScreen() {
           ) : (
             <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
               <Button small kind="secondary" icon="upload" label="Save a backup" onPress={() => { setBackupNote(null); exportBackup().then(setBackupNote).catch(() => setBackupNote('The backup could not be saved.')); }} />
+              {locked && prefs.accessCode ? <Button small kind="ghost" icon="refresh" label="Restore an earlier server save" onPress={() => { setBackupNote(null); fetchEarlierSave().then((b) => (b ? setPendingBackup(b) : setBackupNote('The server has no earlier save yet. It keeps one from before your last hour of changes.'))).catch((e) => setBackupNote(e instanceof Error ? e.message : 'Could not reach the server.')); }} /> : null}
               <Button small kind="secondary" icon="doc" label="Restore from a backup" onPress={() => { setBackupNote(null); pickBackup().then((b) => b && setPendingBackup(b)).catch((e) => setBackupNote(e instanceof Error ? e.message : 'That file could not be read.')); }} />
             </View>
           )}

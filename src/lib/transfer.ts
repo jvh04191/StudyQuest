@@ -24,6 +24,16 @@ function rows(text: string, sep: string): string[][] {
   return out;
 }
 
+/** Cards copied from an app's deck view: one card per blank-line-separated block, question on the first line, answer on the rest. */
+function parseBlocks(text: string): DraftCard[] | null {
+  if (text.includes('\t')) return null;
+  const groups = text.split(/\n\s*\n/).map((g) => g.split('\n').map((l) => l.trim()).filter(Boolean)).filter((g) => g.length);
+  if (groups.length < 2) return null;
+  const twoLine = groups.filter((g) => g.length >= 2 && !g[0].includes(',')).length;
+  if (twoLine < groups.length * 0.8) return null;
+  return groups.filter((g) => g.length >= 2).map((g) => ({ front: g[0], back: g.slice(1).join(' '), detail: '', hint: '' }));
+}
+
 /**
  * Read cards from pasted Quizlet exports, Anki "Notes in Plain Text" exports or CSV.
  * Picks tab, then semicolon-free comma, as the separator; first column is the question, second the answer.
@@ -36,6 +46,8 @@ export function parseImport(text: string): DraftCard[] {
     .join('\n')
     .trim();
   if (!clean) return [];
+  const blocks = parseBlocks(clean);
+  if (blocks) return blocks;
   const sep = clean.includes('\t') ? '\t' : clean.split('\n').filter((l) => l.includes(',')).length >= clean.split('\n').length / 2 ? ',' : ' - ';
   let table: string[][];
   if (sep === ' - ') table = clean.split('\n').map((l) => { const i = l.indexOf(' - '); return i > 0 ? [l.slice(0, i), l.slice(i + 3)] : [l]; });

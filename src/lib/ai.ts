@@ -32,13 +32,14 @@ async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<
   }
 }
 
-/** Does the server we talk to ask for an access code? */
-export async function fetchLocked(): Promise<boolean> {
+/** Does the server ask for an access code, and where does it keep saved progress? */
+export async function fetchServerInfo(): Promise<{ locked: boolean; saves: 'database' | 'file' | null }> {
   try {
     const res = await fetch(`${base()}/api/status`);
-    return !!((await res.json()) as { locked?: boolean }).locked;
+    const j = (await res.json()) as { locked?: boolean; saves?: 'database' | 'file' | null };
+    return { locked: !!j.locked, saves: j.saves ?? null };
   } catch {
-    return false;
+    return { locked: false, saves: null };
   }
 }
 
