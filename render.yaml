@@ -12,10 +12,10 @@ services:
       sizeGB: 1
     envVars:
       - key: AI_PROVIDER
-        value: groq
+        value: gemini
       - key: DATA_DIR
         value: /data
-      - key: GROQ_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: ACCESS_CODE
         sync: false
