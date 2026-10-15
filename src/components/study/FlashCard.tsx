@@ -16,6 +16,7 @@ export function FlashCard({
   onFlip,
   sourceLabel,
   night,
+  label,
 }: {
   card: Card;
   state: CardState;
@@ -23,6 +24,8 @@ export function FlashCard({
   onFlip: (shown: boolean) => void;
   sourceLabel?: string;
   night?: boolean;
+  /** Heading above the question; defaults to the new-card prompt. */
+  label?: string;
 }) {
   const calm = useCalmMotion();
   const [shown, setShown] = useState(false);
@@ -91,7 +94,7 @@ export function FlashCard({
           focused && ({ outlineColor: C.moss, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 4 } as ViewStyle),
         ]}>
         <Animated.View style={[face, { backgroundColor: C.surface1, borderColor: C.panelBorder, boxShadow: `0 6px 0 ${C.panelShadow}`, alignItems: 'center', textAlign: 'center' } as ViewStyle, front]}>
-          <Text style={{ fontFamily: font.bodyBold, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: C.moss }}>New card · learn it</Text>
+          <Text style={{ fontFamily: font.bodyBold, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: C.moss }}>{label ?? 'New card · learn it'}</Text>
           <Text style={{ fontFamily: font.display, fontSize: 25, lineHeight: 32, color: C.text, textAlign: 'center' }}>{card.front}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <Icon name="cards" size={18} color={C.textMuted} />

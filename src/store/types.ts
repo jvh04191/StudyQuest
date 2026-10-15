@@ -80,6 +80,8 @@ export interface QueueItem {
   mode: ItemMode;
   /** 'retry' = another chance after a miss; 'check' = quick test right after learning a new card. */
   retry?: 'retry' | 'check';
+  /** Which replay round this is for a missed question (2 = first replay). Replays are typed recall and repeat until answered right. */
+  round?: number;
   options?: string[];
   /** True/false: the answer being proposed, and whether it is the real one. */
   claim?: string;

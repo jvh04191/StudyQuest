@@ -387,7 +387,10 @@ export const useStore = create<StoreState>()(
         if (quiz && !input.correct) rating = 1;
         const proved = quiz && input.correct && input.firstTry && !input.usedHint && rating >= 3;
         let next: CardState;
-        if (item.retry === 'check' && input.correct) {
+        if (item.retry === 'retry' && (quiz ? !input.correct : rating === 1)) {
+          // A failed replay is practice, not a fresh lapse: keep the schedule as it was.
+          next = { ...prev, lastReviewed: now };
+        } else if (item.retry === 'check' && input.correct) {
           // Already scheduled when the card was learned a moment ago; only record proof.
           next = { ...prev, demonstrated: prev.demonstrated || proved, lastReviewed: now };
         } else {
@@ -432,7 +435,7 @@ export const useStore = create<StoreState>()(
 
         // Hearts: a wrong answer costs one; at zero the explorer has to rest.
         let heartLost = false;
-        if (quiz && !input.correct && a.kind !== 'test' && s.prefs.heartsMode !== 'off' && player.hearts > 0) {
+        if (quiz && !input.correct && item.retry !== 'retry' && a.kind !== 'test' && s.prefs.heartsMode !== 'off' && player.hearts > 0) {
           player.hearts -= 1;
           heartLost = true;
           if (player.hearts === 0) player.restEndsAt = now + REST_MS;
@@ -443,17 +446,14 @@ export const useStore = create<StoreState>()(
           firstTry: input.firstTry, usedHint: input.usedHint, rating, xp, xpNote, wasDue, retry: !!item.retry, proved, heartLost,
         };
 
-        // Another chance later in the quest for anything missed.
+        // Anything missed comes back in a later round as typed recall, and keeps coming back until it is answered right.
         const queue = a.queue.slice();
         const missed = quiz ? !input.correct : rating === 1;
         const alreadyRetried = queue.some((q, i) => i > a.index && q.cardId === card.id);
-        if (missed && item.retry !== 'retry' && !alreadyRetried) {
-          const hasChoices = card.distractors.filter(Boolean).length >= 2;
-          const mode = hasChoices ? 'mc' : 'typed';
-          queue.splice(Math.min(a.index + 3, queue.length), 0, {
-            key: uid('q'), cardId: card.id, mode, retry: 'retry',
-            options: mode === 'mc' ? shuffle([card.back, ...card.distractors.filter(Boolean).slice(0, 3)]) : undefined,
-          });
+        if (missed && !alreadyRetried) {
+          // Active recall either way: type short answers; for long ones, recall it, flip the card and rate yourself.
+          const mode: ItemMode = typedEligible(card) ? 'typed' : 'flash';
+          queue.splice(Math.min(a.index + 3, queue.length), 0, { key: uid('q'), cardId: card.id, mode, retry: 'retry', round: (item.round ?? 1) + 1 });
         }
 
         const decks = s.decks.map((d) => (d.id === card.deckId ? { ...d, lastStudied: now } : d));

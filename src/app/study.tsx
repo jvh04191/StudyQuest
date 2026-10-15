@@ -244,6 +244,7 @@ export default function Study() {
                   card={card}
                   state={st}
                   night={boss}
+                  label={item.retry === 'retry' ? `Round ${item.round ?? 2} · recall` : undefined}
                   onFlip={onReveal}
                   onRate={(r) => commit({ correct: r >= 3, firstTry: true, usedHint: false, rating: r })}
                   sourceLabel={sourceLabel(card, deck?.source)}

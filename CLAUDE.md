@@ -30,6 +30,7 @@ World map of "lands" (subjects), subjects and decks, notes/PDF to flashcards, fl
 - Test modes also include true/false (`QueueItem.claim`/`claimTrue`, rendered by `QuizItem` as a proposed answer + True/False), fill-in-the-blank (`QueueItem.blank`, built from `detail`), and AI-graded written answers (`QueueItem.free`, `/api/grade`). "Hard choices" (`/api/harden`, `Card.hardChoices`) rewrites wrong answers as near-misses once per deck.
 - Backup: Player > Settings > Backup saves/restores all progress as a JSON file (`lib/backup.ts`); the access code is never included.
 - Extras: `/stats` (activity, forecast, accuracy), `/match` (match game), Import tab on `/create` + Export on the deck page (`lib/transfer.ts`).
+- Missed questions replay in rounds until answered right (`answer()` in the store): each replay is `retry: 'retry'` with `round` N, as typed recall (short answers) or self-rated flashcard recall (long answers), re-queued 3 items later. Failed replays cost no hearts and do not add lapses.
 - XP anti-farming uses a per-day `cardXp` ledger. Card status: New / Seen / Proven / Mastered.
 
 ## Working notes

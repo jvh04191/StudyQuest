@@ -223,7 +223,7 @@ export function QuizItem({
   }, [phase, attempt, usedHint, picked, closeMatch, card.id, aiNote]);
   useEffect(() => () => setDock(null), [setDock]);
 
-  const kindLabel = item.retry === 'retry' ? 'Another try' : item.retry === 'check' ? 'Quick check' : item.free ? 'Written answer' : item.blank ? 'Fill in the blank' : typedMode ? 'Type the answer' : item.claim ? 'True or false' : 'Multiple choice';
+  const kindLabel = item.retry === 'retry' ? `Round ${item.round ?? 2} · recall` : item.retry === 'check' ? 'Quick check' : item.free ? 'Written answer' : item.blank ? 'Fill in the blank' : typedMode ? 'Type the answer' : item.claim ? 'True or false' : 'Multiple choice';
 
   return (
     <View style={{ gap: space.lg }}>
