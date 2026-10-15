@@ -1,20 +1,17 @@
-# Render Blueprint: one always-on web service with a small persistent disk for saved progress.
+# Render Blueprint: one web service on the free plan.
+# Free services sleep after ~15 minutes without visitors (the next visit takes about a minute to wake it)
+# and have no persistent disk, so the server's copy of your progress is a relay, not the master copy:
+# each device keeps its own copy and re-uploads it if the server has been wiped.
 # The two secrets are left blank on purpose; Render asks for them when you create the service.
 services:
   - type: web
     name: studyquest
     runtime: docker
-    plan: starter # persistent disks need a paid plan (about $7/month)
+    plan: free
     healthCheckPath: /api/status
-    disk:
-      name: studyquest-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: AI_PROVIDER
         value: gemini
-      - key: DATA_DIR
-        value: /data
       - key: GEMINI_API_KEY
         sync: false
       - key: ACCESS_CODE
