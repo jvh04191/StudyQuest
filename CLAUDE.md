@@ -28,6 +28,7 @@ World map of "lands" (subjects), subjects and decks, notes/PDF to flashcards, fl
 - `src/components/`: `shell/AppShell` (rail >= 700px, tab bar below, docked Nova >= 1000px, floating Nova button otherwise), `art/Avatar` (parametric SVG), `map/` (`WorldMap`, `TopicSheet`), `study/`, `nova/`, `ui/` (`primitives`, `Hearts`). Quest feedback panels render into a bottom dock via `store/dock.ts`. Land names/level titles live in `lib/world.ts`.
 - Practice tests (`SessionKind` `'test'`): `TestSheet` (opened from the deck page, and automatically after saving a new deck) lets the learner pick multiple choice / active recall (typed) / flashcards / mixed and a question count. Tests cover the whole deck in random order, cost no hearts, and re-queue misses.
 - Test modes also include true/false (`QueueItem.claim`/`claimTrue`, rendered by `QuizItem` as a proposed answer + True/False), fill-in-the-blank (`QueueItem.blank`, built from `detail`), and AI-graded written answers (`QueueItem.free`, `/api/grade`). "Hard choices" (`/api/harden`, `Card.hardChoices`) rewrites wrong answers as near-misses once per deck.
+- Backup: Player > Settings > Backup saves/restores all progress as a JSON file (`lib/backup.ts`); the access code is never included.
 - Extras: `/stats` (activity, forecast, accuracy), `/match` (match game), Import tab on `/create` + Export on the deck page (`lib/transfer.ts`).
 - XP anti-farming uses a per-day `cardXp` ledger. Card status: New / Seen / Proven / Mastered.
 

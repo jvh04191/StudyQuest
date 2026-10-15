@@ -9,6 +9,7 @@ import { Button, Field, Panel, Segmented, T, XpBar } from '@/components/ui/primi
 import { Screen } from '@/components/ui/Screen';
 import { HEADWEAR, isLocked, OUTFIT_COLOR, type Look, type Opt } from '@/lib/avatar';
 import { fetchLocked } from '@/lib/ai';
+import { applyBackup, describeBackup, exportBackup, pickBackup, type Backup } from '@/lib/backup';
 import { pull, useSync } from '@/lib/sync';
 import { useDeckStats, useLevel } from '@/lib/hooks';
 import { ACHIEVEMENTS, NOVA_STYLES } from '@/lib/progression';
@@ -94,6 +95,8 @@ export default function PlayerScreen() {
   const [tab, setTab] = useState<Tab>('hats');
   const [confirmReset, setConfirmReset] = useState<null | 'progress' | 'all'>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [backupNote, setBackupNote] = useState<string | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<Backup | null>(null);
   const setContext = useNova((s) => s.setContext);
   useFocusEffect(useCallback(() => setContext({ screen: 'player' }), [setContext]));
 
@@ -301,6 +304,26 @@ export default function PlayerScreen() {
               { value: '50', label: '50 cards' },
             ]}
           />
+        </View>
+        <View style={{ gap: space.sm }}>
+          <T v="bodyStrong">Backup</T>
+          <T v="small">Save a copy of all your decks and progress, and restore it on this or another device. Keep the file somewhere safe, like Files or iCloud Drive.</T>
+          {pendingBackup ? (
+            <View style={{ gap: space.sm, padding: space.md, borderRadius: 15, backgroundColor: C.honeySoft }}>
+              <T v="bodyStrong">Restore this backup?</T>
+              <T v="small" style={{ color: C.text }}>{describeBackup(pendingBackup)}. This replaces everything on this device.</T>
+              <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
+                <Button small label="Restore" onPress={() => { applyBackup(pendingBackup); useNova.getState().clear(); setName(useStore.getState().player.name); setPendingBackup(null); setBackupNote('Backup restored.'); }} />
+                <Button small kind="secondary" label="Cancel" onPress={() => setPendingBackup(null)} />
+              </View>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
+              <Button small kind="secondary" icon="upload" label="Save a backup" onPress={() => { setBackupNote(null); exportBackup().then(setBackupNote).catch(() => setBackupNote('The backup could not be saved.')); }} />
+              <Button small kind="secondary" icon="doc" label="Restore from a backup" onPress={() => { setBackupNote(null); pickBackup().then((b) => b && setPendingBackup(b)).catch((e) => setBackupNote(e instanceof Error ? e.message : 'That file could not be read.')); }} />
+            </View>
+          )}
+          {backupNote ? <T v="small" style={{ color: C.text }}>{backupNote}</T> : null}
         </View>
         <View style={{ gap: space.sm }}>
           <T v="bodyStrong">Start over</T>

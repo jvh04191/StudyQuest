@@ -27,7 +27,7 @@ let busy = false;
 
 const header = () => ({ 'content-type': 'application/json', 'x-access-code': useStore.getState().prefs.accessCode ?? '' });
 
-function snapshot() {
+export function snapshot() {
   const s = useStore.getState();
   const { accessCode: _code, ...prefs } = s.prefs;
   return JSON.parse(
