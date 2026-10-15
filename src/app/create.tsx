@@ -10,7 +10,7 @@ import { CardEditor } from '@/components/study/CardEditor';
 import { Icon } from '@/components/ui/Icon';
 import { Button, Field, IconButton, Panel, Pill, Segmented, T } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
-import { fetchPage, generateStudySet, quickExtract } from '@/lib/ai';
+import { fetchPage, generateInParts, quickExtract } from '@/lib/ai';
 import { Bar } from '@/components/ui/primitives';
 import { parseImport } from '@/lib/transfer';
 import { landName } from '@/lib/world';
@@ -96,13 +96,22 @@ export default function Create() {
 
   const generate = async () => {
     setError(null);
-    setBusy(source === 'pdf' ? 'Nova is reading your PDF. Longer files can take a minute…' : 'Nova is turning your notes into cards…');
+    setBusy('Nova is getting your material ready…');
     try {
+      const cnt = count === 'auto' ? 'auto' : Number(count);
+      let pdfData: string | undefined;
+      if (source === 'pdf') pdfData = await readPdfBase64(pdf!);
+      // Longer material is made in three shorter requests so one slow request can't lose everything.
+      const parts = source === 'pdf' ? ((pdfData?.length ?? 0) > 400_000 ? 3 : 1) : notes.length > 4000 ? 3 : 1;
+      const what = source === 'pdf' ? 'your PDF' : 'your notes';
+      setBusy(parts > 1 ? `Nova is reading ${what}, part 1 of ${parts}…` : source === 'pdf' ? 'Nova is reading your PDF…' : 'Nova is turning your notes into cards…');
+      const onProgress = (done: number, total: number) => { if (total > 1 && done < total) setBusy(`Nova is reading ${what}, part ${done + 1} of ${total}…`); };
       const res =
         source === 'pdf'
-          ? await generateStudySet({ mode: 'pdf', pdfBase64: await readPdfBase64(pdf!), fileName: pdf!.name, subject: subjectName, deckTitle: title, count: count === 'auto' ? 'auto' : Number(count) })
-          : await generateStudySet({ mode: 'notes', text: notes, subject: subjectName, deckTitle: title, count: count === 'auto' ? 'auto' : Number(count) });
+          ? await generateInParts({ mode: 'pdf', pdfBase64: pdfData, fileName: pdf!.name, subject: subjectName, deckTitle: title, count: cnt }, parts, onProgress)
+          : await generateInParts({ mode: 'notes', text: notes, subject: subjectName, deckTitle: title, count: cnt }, parts, onProgress);
       if (!res.cards.length) throw new Error('No cards came back. Try adding more detail to your material.');
+      if (res.failedParts) setError(`${res.failedParts} of ${parts} parts couldn’t be made${res.lastError ? ` (${res.lastError})` : ''}, so these cards only cover part of your material. You can save them and brew the rest again later.`);
       setDrafts(res.cards.map((c) => ({ ...c, keep: true })));
       setSummary(res.summary);
       if (!title.trim() && res.title) setTitle(res.title);

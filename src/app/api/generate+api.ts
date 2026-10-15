@@ -10,6 +10,33 @@ interface GenBody {
   deckTitle?: string;
   /** A number of cards, or 'auto' to cover everything in the material. */
   count?: number | 'auto';
+  /** Long material is made in several requests: this is request `part` of `parts`. */
+  part?: number;
+  parts?: number;
+}
+
+/** Slice text into `parts` roughly equal pieces, cutting between paragraphs where possible, and return piece `part`. */
+function slicePart(text: string, part: number, parts: number) {
+  const cut = (i: number) => {
+    if (i <= 0) return 0;
+    if (i >= text.length) return text.length;
+    const w = Math.max(300, Math.floor((text.length / parts) * 0.15));
+    const from = Math.max(0, i - w);
+    // the break closest to the ideal cut, looking both ways: paragraph first, then sentence
+    const near = (re: RegExp) => {
+      let best = -1;
+      for (const m of text.slice(from, i + w).matchAll(re)) {
+        const pos = from + (m.index ?? 0) + m[0].length;
+        if (best < 0 || Math.abs(pos - i) < Math.abs(best - i)) best = pos;
+      }
+      return best;
+    };
+    const para = near(/\n+/g);
+    if (para > 0) return para;
+    const sentence = near(/[.!?]\s+/g);
+    return sentence > 0 ? sentence : i;
+  };
+  return text.slice(cut(Math.floor((text.length * (part - 1)) / parts)), cut(Math.floor((text.length * part) / parts))).trim();
 }
 
 export async function POST(request: Request) {
@@ -28,9 +55,26 @@ export async function POST(request: Request) {
       if (text.length < 40) return Response.json({ error: 'Add a bit more material — at least a few sentences.' }, { status: 400 });
       text = text.slice(0, 60000);
     }
-    const howMany = auto
-      ? 'Create one flashcard for every distinct question, term or key fact in it (up to 60). If the material is a list of questions, such as a quiz, worksheet or study guide, make exactly one card per question and keep every question.'
-      : `Create ${count} flashcards (fewer only if the material truly has less to cover). If the material is a list of questions, make one card per question.`;
+    const parts = Math.max(1, Math.min(5, Math.floor(Number(body.parts) || 1)));
+    const part = Math.max(1, Math.min(parts, Math.floor(Number(body.part) || 1)));
+    if (parts > 1 && text) {
+      text = slicePart(text, part, parts);
+      if (text.length < 20) return Response.json({ cards: [], title: '', summary: '' });
+    }
+    const perPart = Math.ceil(count / parts);
+    const share =
+      parts > 1
+        ? `This is part ${part} of ${parts} of the material. ${
+            body.mode === 'pdf'
+              ? `Only cover roughly the ${Math.round(((part - 1) / parts) * 100)}% to ${Math.round((part / parts) * 100)}% stretch of the document, by position. Other requests cover the rest, so skip it. `
+              : 'Other requests cover the rest, so use only what is given here. '
+          }`
+        : '';
+    const howMany =
+      share +
+      (auto
+        ? `Create one flashcard for every distinct question, term or key fact in it (up to ${parts > 1 ? 20 : 60}). If the material is a list of questions, such as a quiz, worksheet or study guide, make exactly one card per question and keep every question.`
+        : `Create ${perPart} flashcards (fewer only if the material truly has less to cover). If the material is a list of questions, make one card per question.`);
     const instructions = `${howMany}\nMaterial: this ${body.mode === 'pdf' ? 'PDF' : body.mode === 'explanation' ? 'explanation' : 'set of notes'}${body.subject ? `, subject "${body.subject}"` : ''}${body.deckTitle ? `, deck "${body.deckTitle}"` : ''}.
 Rules:
 - Use only facts stated in the material.

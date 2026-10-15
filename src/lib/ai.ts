@@ -71,8 +71,51 @@ export function generateStudySet(body: {
   subject?: string;
   deckTitle?: string;
   count?: number | 'auto';
+  part?: number;
+  parts?: number;
 }) {
   return post<GenResult>('/api/generate', body, 240000);
+}
+
+export interface PartsResult extends GenResult {
+  /** Parts that failed after the first, so the deck is only partly made. */
+  failedParts: number;
+  lastError?: string;
+}
+
+/**
+ * Make a deck in several shorter requests (so one slow or failed request doesn't lose everything).
+ * The first part must succeed; if a later part fails, the cards made so far are kept.
+ */
+export async function generateInParts(
+  body: Parameters<typeof generateStudySet>[0],
+  parts: number,
+  onProgress?: (done: number, total: number) => void,
+): Promise<PartsResult> {
+  const out: PartsResult = { title: '', summary: '', cards: [], failedParts: 0 };
+  const seen = new Set<string>();
+  for (let part = 1; part <= parts; part++) {
+    onProgress?.(part - 1, parts);
+    try {
+      const res = await generateStudySet(parts > 1 ? { ...body, part, parts } : body);
+      if (part === 1) {
+        out.title = res.title;
+        out.summary = res.summary;
+      }
+      for (const c of res.cards) {
+        const k = c.front.trim().toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.cards.push(c);
+      }
+    } catch (e) {
+      if (part === 1) throw e;
+      out.failedParts++;
+      out.lastError = e instanceof Error ? e.message : undefined;
+    }
+  }
+  onProgress?.(parts, parts);
+  return out;
 }
 
 export function hardenChoices(cards: { id: string; front: string; back: string }[]) {
