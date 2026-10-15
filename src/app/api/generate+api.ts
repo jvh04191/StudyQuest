@@ -1,3 +1,4 @@
+import { denied } from '@/server/guard';
 import { makeStudySet } from '@/server/ai';
 
 interface GenBody {
@@ -12,6 +13,8 @@ interface GenBody {
 }
 
 export async function POST(request: Request) {
+  const no = denied(request);
+  if (no) return no;
   try {
     const body = (await request.json()) as GenBody;
     const auto = body.count === 'auto' || body.count == null;

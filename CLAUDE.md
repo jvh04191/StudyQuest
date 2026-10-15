@@ -37,3 +37,8 @@ World map of "lands" (subjects), subjects and decks, notes/PDF to flashcards, fl
 - Run `npx tsc --noEmit` before calling work done. `npx expo lint` and the `expo install` compatibility check need network access.
 - Don't run `npm audit fix --force`.
 - Do not fake AI output. Demo mode must stay clearly labeled.
+
+## Web app / hosting
+- `npm run build:web` (`expo export -p web`) writes `dist/` (static pages + API routes); `npm run serve:web` (`expo serve`) runs it, reading `.env`. A `Dockerfile` does the same for hosts like Render, Railway or Fly (set env vars there; never bake `.env` in).
+- AI routes are guarded by an optional `ACCESS_CODE` env var (`src/server/guard.ts`); the client sends `prefs.accessCode` as `x-access-code`, entered on the Player tab when `/api/status` reports `locked`. Always set it on a public host. Progress is stored on the device (AsyncStorage/localStorage); when the server has `ACCESS_CODE` it is also synced to `DATA_DIR` (`/api/sync`, `lib/sync.ts`: newest save wins, one JSON file per code hash, multiple comma-separated codes = multiple accounts).
+- Never kill all node processes on this PC: the user may have their own Expo server running (port 8081).

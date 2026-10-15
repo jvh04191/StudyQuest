@@ -10,6 +10,7 @@ import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppShell } from '@/components/shell/AppShell';
+import { startSync } from '@/lib/sync';
 import { useNova } from '@/store/novaStore';
 import { useStore } from '@/store/useStore';
 import { color as C } from '@/theme/tokens';
@@ -55,6 +56,7 @@ export default function RootLayout() {
     if (!ready) return;
     useStore.getState().ensureToday();
     useNova.getState().checkAi();
+    startSync();
     SplashScreen.hideAsync().catch(() => {});
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') useStore.getState().ensureToday();

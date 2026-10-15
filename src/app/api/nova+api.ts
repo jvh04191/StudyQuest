@@ -1,3 +1,4 @@
+import { denied } from '@/server/guard';
 import { chat } from '@/server/ai';
 
 interface NovaBody {
@@ -63,6 +64,8 @@ const ACTIONS: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
+  const no = denied(request);
+  if (no) return no;
   try {
     const body = (await request.json()) as NovaBody;
     const history = (body.messages ?? []).slice(-12).filter((m) => m.text?.trim());

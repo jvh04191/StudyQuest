@@ -223,6 +223,8 @@ export interface Prefs {
   heartsMode: HeartsMode;
   /** Home hero: the daily-quest trail, a cork notice board, or a night campfire. */
   homeStyle: 'trail' | 'board' | 'hearth';
+  /** Passcode for a hosted copy of the app that sets ACCESS_CODE. */
+  accessCode?: string;
 }
 
 export type HeartsMode = 'wait' | 'acorns' | 'free' | 'off';

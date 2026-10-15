@@ -1,6 +1,9 @@
+import { denied } from '@/server/guard';
 import { hardenChoices } from '@/server/ai';
 
 export async function POST(request: Request) {
+  const no = denied(request);
+  if (no) return no;
   try {
     const body = (await request.json()) as { cards?: { id: string; front: string; back: string }[] };
     const cards = (body.cards ?? []).filter((c) => c?.id && c.front && c.back).slice(0, 25);

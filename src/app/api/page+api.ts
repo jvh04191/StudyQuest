@@ -1,3 +1,4 @@
+import { denied } from '@/server/guard';
 /** Fetch a web page and return its readable text so it can be turned into cards. */
 const PRIVATE = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.|\[?::1\]?$)/i;
 
@@ -20,6 +21,8 @@ function toText(html: string) {
 }
 
 export async function POST(request: Request) {
+  const no = denied(request);
+  if (no) return no;
   try {
     const { url } = (await request.json()) as { url?: string };
     let u: URL;

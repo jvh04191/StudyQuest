@@ -1,6 +1,9 @@
+import { denied } from '@/server/guard';
 import { gradeAnswer } from '@/server/ai';
 
 export async function POST(request: Request) {
+  const no = denied(request);
+  if (no) return no;
   try {
     const b = (await request.json()) as { question?: string; answer?: string; detail?: string; response?: string };
     if (!b.question || !b.answer || !b.response?.trim()) return Response.json({ error: 'Nothing to grade.' }, { status: 400 });

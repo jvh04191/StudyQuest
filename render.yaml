@@ -1,0 +1,21 @@
+# Render Blueprint: one always-on web service with a small persistent disk for saved progress.
+# The two secrets are left blank on purpose; Render asks for them when you create the service.
+services:
+  - type: web
+    name: studyquest
+    runtime: docker
+    plan: starter # persistent disks need a paid plan (about $7/month)
+    healthCheckPath: /api/status
+    disk:
+      name: studyquest-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: AI_PROVIDER
+        value: groq
+      - key: DATA_DIR
+        value: /data
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ACCESS_CODE
+        sync: false

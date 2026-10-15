@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import type { DraftCard } from '@/store/useStore';
+import { useStore, type DraftCard } from '@/store/useStore';
 
 /** The Expo dev server hosts the API routes; on device we call it by its host. */
 function base() {
@@ -16,7 +16,7 @@ async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<
   try {
     const res = await fetch(`${base()}${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-access-code': useStore.getState().prefs.accessCode ?? '' },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
@@ -29,6 +29,16 @@ async function post<T>(path: string, body: unknown, timeoutMs = 90000): Promise<
     throw e;
   } finally {
     clearTimeout(t);
+  }
+}
+
+/** Does the server we talk to ask for an access code? */
+export async function fetchLocked(): Promise<boolean> {
+  try {
+    const res = await fetch(`${base()}/api/status`);
+    return !!((await res.json()) as { locked?: boolean }).locked;
+  } catch {
+    return false;
   }
 }
 

@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
 import { Avatar, Medal } from '@/components/art/Art';
@@ -8,6 +8,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Button, Field, Panel, Segmented, T, XpBar } from '@/components/ui/primitives';
 import { Screen } from '@/components/ui/Screen';
 import { HEADWEAR, isLocked, OUTFIT_COLOR, type Look, type Opt } from '@/lib/avatar';
+import { fetchLocked } from '@/lib/ai';
+import { pull, useSync } from '@/lib/sync';
 import { useDeckStats, useLevel } from '@/lib/hooks';
 import { ACHIEVEMENTS, NOVA_STYLES } from '@/lib/progression';
 import { levelTitle } from '@/lib/world';
@@ -75,6 +77,11 @@ function Tile({ on, locked, lockLabel, name, onPress, children }: { on: boolean;
 export default function PlayerScreen() {
   const player = useStore((s) => s.player);
   const prefs = useStore((s) => s.prefs);
+  const sync = useSync();
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    fetchLocked().then(setLocked);
+  }, []);
   const setPlayer = useStore((s) => s.setPlayer);
   const setPrefs = useStore((s) => s.setPrefs);
   const setLook = useStore((s) => s.setLook);
@@ -235,6 +242,22 @@ export default function PlayerScreen() {
             })}
           </View>
         </View>
+
+        {locked && (
+          <View style={{ gap: space.sm }}>
+            <T v="bodyStrong">Access code</T>
+            <T v="small">This copy of StudyQuest asks for a code before it uses the AI. The same code also saves your progress to the server, so use it on every device you play on.</T>
+            <Field label="Access code" value={prefs.accessCode ?? ''} onChangeText={(v) => setPrefs({ accessCode: v.trim() })} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+            {prefs.accessCode ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
+                <T v="small" style={{ flex: 1, color: sync.status === 'error' ? C.berryInk : C.textMuted }}>
+                  {sync.status === 'syncing' ? 'Saving to the server…' : sync.status === 'error' ? `Not saved to the server: ${sync.message}` : sync.status === 'saved' && sync.at ? `Progress saved to the server · ${new Date(sync.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Progress is saved to the server with this code, so it follows you to other devices.'}
+                </T>
+                <Button small kind="secondary" icon="refresh" label="Sync now" onPress={() => { pull(); }} />
+              </View>
+            ) : null}
+          </View>
+        )}
 
         <View style={{ gap: space.sm }}>
           <T v="bodyStrong">Home screen</T>
